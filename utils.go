@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"fmt"
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/sigurn/crc8"
 	"github.com/xthexder/go-jack"
@@ -95,4 +97,69 @@ func SavePreambleToFile(filename string, preamble []jack.AudioSample) error {
 	}
 
 	return nil
+}
+
+// Test: Compare INPUT.txt and matlab/decode_output.txt
+func Compare() {
+	// Open the  input file
+	input_file, err := os.Open("compare/INPUT.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer input_file.Close()
+
+	output_file, err := os.Open("compare/OUTPUT.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer output_file.Close()
+
+	data_input := make([]int, 0, 10000)
+	// Read the file
+	scanner := bufio.NewScanner(input_file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		numbers := strings.Fields(line)
+		for _, num := range numbers {
+			// 将字符串转换为整数
+			value, err := strconv.Atoi(num)
+			if err != nil {
+				fmt.Println("Error converting string to int:", err)
+				continue
+			}
+			data_input = append(data_input, value)
+		}
+	}
+
+	data_output := make([]int, 0, 10000)
+	// Read the file
+	out_scanner := bufio.NewScanner(output_file)
+	for out_scanner.Scan() {
+		line := out_scanner.Text()
+		numbers := strings.Fields(line)
+		for _, num := range numbers {
+			// 将字符串转换为整数
+			value, err := strconv.Atoi(num)
+			if err != nil {
+				fmt.Println("Error converting string to int:", err)
+				continue
+			}
+			data_output = append(data_output, value)
+		}
+	}
+	error_count := 0
+	for i := 0; i < len(data_input); i++ {
+		if data_input[i] != data_output[i] {
+			error_count++
+		}
+		// } else {
+		// 	if error_count != 0 {
+		// 		fmt.Printf("%d ", error_count)
+		// 	}
+		// 	error_count = 0
+		// }
+	}
+	// Calculate error rate
+	fmt.Println("Total error is: ", error_count, " bit")
+	fmt.Println("Error rate is: ", float32(error_count/10000))
 }
