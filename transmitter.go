@@ -30,19 +30,31 @@ func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
 func (t *Transmitter) generateChirpPreamble(fstart, fend, fs, length int) {
 	// make a preamble array
 	t.preamble = make([]jack.AudioSample, length)
-	midpoint := length / 2
-	// up-chirp
-	for i := 0; i < midpoint; i++ {
-		f := float64(fstart + (fend-fstart)*i/midpoint)
-		t.preamble[i] = jack.AudioSample(math.Sin(2 * math.Pi * f * float64(i) / float64(fs)))
+	// Define the number of samples
+	n := 480
+	time := make([]float64, n)
+	dt := 1.0 / 48000.0 // Assuming a 48 kHz sample rate
+	// Create the time vector t
+	for i := range time {
+		time[i] = float64(i) * dt
 	}
-	// down-chirp
-	for i := midpoint; i < length; i++ {
-		f := float64(fend - (fend-fstart)*(i-midpoint)/midpoint)
-		t.preamble[i] = jack.AudioSample(math.Sin(2 * math.Pi * f * float64(i) / float64(fs)))
+	// Create the frequency profile f_p
+	f_p := make([]float64, n)
+	for i := 0; i < 240; i++ {
+		f_p[i] = 2e3 + 8e3*float64(i)/240
+		f_p[479-i] = 2e3 + 8e3*float64(i)/240
+	}
+	// Compute the cumulative integral (omega) using the trapezoidal rule
+	omega := make([]float64, n)
+	omega[0] = 0
+	for i := 1; i < n; i++ {
+		omega[i] = omega[i-1] + 0.5*(f_p[i]+f_p[i-1])*2*math.Pi*dt
+	}
+	for i := range omega {
+		t.preamble[i] = jack.AudioSample(math.Sin(omega[i]))
 	}
 	// save preamble to file for matlab debugging
-	err := SavePreambleToFile("preamble.csv", t.preamble)
+	err := SavePreambleToFile("matlab/preamble.csv", t.preamble)
 	if err != nil {
 		fmt.Println("Error saving preamble:", err)
 	} else {
@@ -78,9 +90,9 @@ func (t *Transmitter) readFromFile(fileName string) {
 }
 func (t *Transmitter) Start() {
 	// Separate the data into 100 frames
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 100; i++ {
 		// Get the next frame
-		frame := t.data[i*200 : (i+1)*200]
+		frame := t.data[i*100 : (i+1)*100]
 		// Add CRC redundancy bits
 		frameCRC := append(frame, CRC8(frame)...)
 		// Modulate the frame
@@ -108,7 +120,7 @@ func (t *Transmitter) Start() {
 
 func modulate(frameCRC []int) []jack.AudioSample {
 	frameWave := make([]jack.AudioSample, len(frameCRC)*48)
-	// Use PSK modulation with carrier frequency of 20 kHz
+	// Use PSK modulation with carrier frequency of 10 kHz
 	f := float64(10000) // Carrier frequency
 	for i, bit := range frameCRC {
 		// Define phase shift for PSK: 0 -> phase 0, 1 -> phase π
