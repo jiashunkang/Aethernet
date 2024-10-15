@@ -21,7 +21,7 @@ Remember to disable "enhancement" for microphone (记得关声音增强功能，
 用AMD Audio device而不是realtek立体声混音
 
 # Project 1
-To run the project, run the following command in the \acoustic_link directory
+To run the project, run the following command in the `computernetworks-shanghaitech` directory
 ```
 go build
 ```
