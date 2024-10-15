@@ -66,8 +66,8 @@ end
 
 
 %% Receiver
-[soundTrack,fs] = audioread('sample_track.wav');
-% output_track = soundTrack'; 
+[soundTrack,fs] = audioread('sample_track1.wav');
+output_track = soundTrack'; 
 RxFIFO = output_track;
 
 power = 0;
@@ -96,7 +96,7 @@ for i = 1:length(RxFIFO)
         syncFIFO = [syncFIFO(2:end),current_sample];
         syncPower_debug(i) = sum(syncFIFO.*preamble)/200;
 
-        if (syncPower_debug(i) > power*2) && (syncPower_debug(i) > syncPower_localMax) && (syncPower_debug(i) > 0.05)
+        if (syncPower_debug(i) > power*2) && (syncPower_debug(i) > syncPower_localMax) && (syncPower_debug(i) > 0.024)
             syncPower_localMax = syncPower_debug(i);
             start_index = i;
         elseif (i-start_index >200) && (start_index~=0)
