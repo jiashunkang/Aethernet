@@ -56,8 +56,9 @@ func (t *Transmitter) readFromFile(fileName string) {
 func (t *Transmitter) Start() {
 	// Separate the data into 100 frames
 	for i := 0; i < 100; i++ {
+		trivial_frame := make([]int, 8, 108)
 		// Get the next frame
-		frame := t.data[i*100 : (i+1)*100]
+		frame := append(trivial_frame, t.data[i*100:(i+1)*100]...)
 		// Add CRC redundancy bits
 		frameCRC := append(frame, CRC8(frame)...)
 		// Modulate the frame

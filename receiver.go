@@ -41,7 +41,7 @@ func (r *Receiver) Start() {
 	syncPowerDebug := make([]float64, 1000000)
 	var decodeFIFO []float64
 	var totalFrame, correctFrameNum int
-	frameSize := 100
+	frameSize := 108
 	i := -1
 	for jacksample := range r.inputChannel {
 		// if i%1000 == 0 {
@@ -81,7 +81,7 @@ func (r *Receiver) Start() {
 				}
 
 				crcCheck := CRC8(decodeFIFOPowerBit[:frameSize])
-				r.decode_data = append(r.decode_data, decodeFIFOPowerBit[:frameSize]...)
+				r.decode_data = append(r.decode_data, decodeFIFOPowerBit[8:frameSize]...)
 
 				if !isEqual(crcCheck, decodeFIFOPowerBit[frameSize:]) {
 					fmt.Println("CRC Error")
