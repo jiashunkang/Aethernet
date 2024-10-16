@@ -32,15 +32,12 @@ func main() {
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
-		// inBuffer := inPort.GetBuffer(nframes)
+		inBuffer := inPort.GetBuffer(nframes)
 		outBuffer := outPort.GetBuffer(nframes)
 
-		// for _, sample := range inBuffer {
-		// 	select {
-		// 	// case inputChannel <- sample:
-		// 	default:
-		// 	}
-		// }
+		for _, sample := range inBuffer {
+			inputChannel <- sample
+		}
 
 		for i := range outBuffer {
 			select {
