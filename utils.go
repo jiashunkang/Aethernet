@@ -247,5 +247,5 @@ func Compare() {
 	}
 	// Calculate error rate
 	fmt.Println("Total error is: ", error_count, " bit")
-	fmt.Println("Error rate is: ", float32(error_count/10000))
+	fmt.Printf("Error rate is: %.2f\n", float32(error_count)/10000)
 }
