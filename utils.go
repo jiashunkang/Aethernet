@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -27,6 +28,56 @@ func GenerateInputTxt() {
 		file.WriteString(" ")
 	}
 }
+
+func WriteOutputTxt(data []int) {
+	file, err := os.Create("compare/OUTPUT.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	for _, bit := range data {
+		file.WriteString(fmt.Sprint(bit))
+		// add a space between every bit
+		file.WriteString(" ")
+	}
+}
+
+func ReadFromCsvFile(filename string) ([]jack.AudioSample, error) {
+	// 打开文件
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// 创建 CSV reader
+	reader := csv.NewReader(file)
+
+	// 读取所有行
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建一个 float32 切片来存储结果
+	var result []jack.AudioSample
+
+	// 遍历每一行的数据
+	for _, record := range records {
+		for _, value := range record {
+			// 将字符串转换为 float32
+			floatValue, err := strconv.ParseFloat(value, 32)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, jack.AudioSample(floatValue))
+		}
+	}
+
+	return result, nil
+}
+
 func ConvertIntArrayToBitArray(intArray []int) []byte {
 	byteArrayLength := (len(intArray) + 7) / 8
 	remainder := len(intArray) % 8
@@ -68,11 +119,46 @@ func ConvertBitArrayToIntArray(bitArray []byte, totalBits int) []int {
 }
 
 func CRC8(data []int) []int {
-	table := crc8.MakeTable(crc8.CRC8)
+	table := crc8.MakeTable(crc8.CRC8_MAXIM)
 	byteData := ConvertIntArrayToBitArray(data)
 	crc := crc8.Checksum(byteData, table)
 	intCRC := ConvertBitArrayToIntArray([]byte{crc}, 8)
 	return intCRC
+}
+func GenerateChirpPreamble(fstart, fend, fs, length int) []jack.AudioSample {
+	// make a preamble array
+	preamble := make([]jack.AudioSample, length)
+	// Define the number of samples
+	n := 480
+	time := make([]float64, n)
+	dt := 1.0 / 48000.0 // Assuming a 48 kHz sample rate
+	// Create the time vector t
+	for i := range time {
+		time[i] = float64(i) * dt
+	}
+	// Create the frequency profile f_p
+	f_p := make([]float64, n)
+	for i := 0; i < 240; i++ {
+		f_p[i] = 2e3 + 8e3*float64(i)/240
+		f_p[479-i] = 2e3 + 8e3*float64(i)/240
+	}
+	// Compute the cumulative integral (omega) using the trapezoidal rule
+	omega := make([]float64, n)
+	omega[0] = 0
+	for i := 1; i < n; i++ {
+		omega[i] = omega[i-1] + 0.5*(f_p[i]+f_p[i-1])*2*math.Pi*dt
+	}
+	for i := range omega {
+		preamble[i] = jack.AudioSample(math.Sin(omega[i]))
+	}
+	// // save preamble to file for matlab debugging
+	// err := SavePreambleToFile("matlab/preamble.csv", preamble)
+	// if err != nil {
+	// 	fmt.Println("Error saving preamble:", err)
+	// } else {
+	// 	fmt.Println("Preamble saved to preamble.csv")
+	// }
+	return preamble
 }
 
 func SavePreambleToFile(filename string, preamble []jack.AudioSample) error {

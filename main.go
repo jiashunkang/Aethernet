@@ -9,6 +9,9 @@ import (
 )
 
 func main() {
+	// Copy the whole track into data
+	data := make([]jack.AudioSample, 0, 1000000)
+
 	client, _ := jack.ClientOpen("AcousticLink", jack.NoStartServer)
 	if client == nil {
 		fmt.Println("Could not connect to jack server.")
@@ -43,6 +46,7 @@ func main() {
 			select {
 			case sample := <-outputChannel:
 				outBuffer[i] = sample
+				data = append(data, sample)
 			default:
 				outBuffer[i] = 0.0
 			}
@@ -69,4 +73,13 @@ func main() {
 
 	fmt.Println("Press enter or return to quit...")
 	bufio.NewReader(os.Stdin).ReadString('\n')
+
+	// Write the data to a file, reuse function from utils
+	err := SavePreambleToFile("matlab/output_track.csv", data)
+	if err != nil {
+		fmt.Println("Error saving preamble:", err)
+	} else {
+		fmt.Println("Output saved to matlab/output_track.csv")
+	}
+
 }
