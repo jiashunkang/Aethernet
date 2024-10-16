@@ -1,3 +1,6 @@
 *.wav
 matlab/*.wav
 *.exe
+*.txt
+*/*.txt
+*/*.csv
