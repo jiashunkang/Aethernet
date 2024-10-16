@@ -1,9 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
+	"time"
 
 	"github.com/xthexder/go-jack"
 )
@@ -25,10 +24,11 @@ func main() {
 	systemInPort := client.GetPortByName("system:capture_1")
 	systemOutPort := client.GetPortByName("system:playback_1")
 
-	// inputChannel := make(chan jack.AudioSample, 1024)
+	inputChannel := make(chan jack.AudioSample, 1024)
 	outputChannel := make(chan jack.AudioSample, 1024)
 
 	transmitter := NewTransmitter(outputChannel)
+	receiver := NewReceiver(inputChannel)
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
@@ -46,8 +46,10 @@ func main() {
 			select {
 			case sample := <-outputChannel:
 				outBuffer[i] = sample
+				inputChannel <- sample
 				data = append(data, sample)
 			default:
+				inputChannel <- jack.AudioSample(0.0)
 				outBuffer[i] = 0.0
 			}
 		}
@@ -70,10 +72,12 @@ func main() {
 
 	// Start Transmitting
 	go transmitter.Start()
-
-	fmt.Println("Press enter or return to quit...")
-	bufio.NewReader(os.Stdin).ReadString('\n')
-
+	//Start Receiving
+	go receiver.Start()
+	// fmt.Println("Press enter or return to quit...")
+	// bufio.NewReader(os.Stdin).ReadString('\n')
+	time.Sleep(15 * time.Second)
+	fmt.Println("15 seconds passed, stopping...")
 	// Write the data to a file, reuse function from utils
 	err := SavePreambleToFile("matlab/output_track.csv", data)
 	if err != nil {
@@ -81,5 +85,8 @@ func main() {
 	} else {
 		fmt.Println("Output saved to matlab/output_track.csv")
 	}
+	// Compare Result
+	Compare()
+	fmt.Println("Done.")
 
 }
