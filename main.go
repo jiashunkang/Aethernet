@@ -43,7 +43,6 @@ func main() {
 			select {
 			case sample := <-outputChannel:
 				outBuffer[i] = sample
-				inputChannel <- sample
 				data = append(data, sample)
 			default:
 				inputChannel <- jack.AudioSample(0.0)
