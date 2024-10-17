@@ -4,3 +4,4 @@ matlab/*.wav
 *.txt
 */*.txt
 */*.csv
+matlab/*

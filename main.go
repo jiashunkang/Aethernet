@@ -37,14 +37,16 @@ func main() {
 		outBuffer := outPort.GetBuffer(nframes)
 
 		for _, sample := range inBuffer {
+			data_in = append(data_in, sample)
 			inputChannel <- sample
+
 		}
 
 		for i := range outBuffer {
 			select {
 			case sample := <-outputChannel:
 				outBuffer[i] = sample
-				data_in = append(data_in, sample)
+				data_out = append(data_out, sample)
 			default:
 				inputChannel <- jack.AudioSample(0.0)
 				data_out = append(data_out, jack.AudioSample(0.0))
@@ -81,10 +83,10 @@ func main() {
 	if err != nil {
 		fmt.Println("Error saving preamble:", err)
 	} else {
-		fmt.Println("Output saved to matlab/output_track.csv")
+		fmt.Println("Output saved to matlab/input_track.csv")
 	}
 	// Write the data to a file, reuse function from utils
-	err_out := SavePreambleToFile("matlab/input_track.csv", data_out)
+	err_out := SavePreambleToFile("matlab/output_track.csv", data_out)
 	if err_out != nil {
 		fmt.Println("Error saving preamble:", err)
 	} else {
