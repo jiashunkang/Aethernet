@@ -9,7 +9,8 @@ import (
 
 func main() {
 	// Copy the whole track into data
-	data := make([]jack.AudioSample, 0, 1000000)
+	data_in := make([]jack.AudioSample, 0, 2000000)
+	data_out := make([]jack.AudioSample, 0, 2000000)
 
 	client, _ := jack.ClientOpen("AcousticLink", jack.NoStartServer)
 	if client == nil {
@@ -22,7 +23,7 @@ func main() {
 	outPort := client.PortRegister("output", jack.DEFAULT_AUDIO_TYPE, jack.PortIsOutput, 0)
 
 	systemInPort := client.GetPortByName("system:capture_1")
-	systemOutPort := client.GetPortByName("system:playback_1")
+	systemOutPort := client.GetPortByName("system:playback_2")
 
 	inputChannel := make(chan jack.AudioSample, 1024)
 	outputChannel := make(chan jack.AudioSample, 1024)
@@ -43,9 +44,10 @@ func main() {
 			select {
 			case sample := <-outputChannel:
 				outBuffer[i] = sample
-				data = append(data, sample)
+				data_in = append(data_in, sample)
 			default:
 				inputChannel <- jack.AudioSample(0.0)
+				data_out = append(data_out, jack.AudioSample(0.0))
 				outBuffer[i] = 0.0
 			}
 		}
@@ -75,8 +77,15 @@ func main() {
 	time.Sleep(15 * time.Second)
 	fmt.Println("15 seconds passed, stopping...")
 	// Write the data to a file, reuse function from utils
-	err := SavePreambleToFile("matlab/output_track.csv", data)
+	err := SavePreambleToFile("matlab/input_track.csv", data_in)
 	if err != nil {
+		fmt.Println("Error saving preamble:", err)
+	} else {
+		fmt.Println("Output saved to matlab/output_track.csv")
+	}
+	// Write the data to a file, reuse function from utils
+	err_out := SavePreambleToFile("matlab/input_track.csv", data_out)
+	if err_out != nil {
 		fmt.Println("Error saving preamble:", err)
 	} else {
 		fmt.Println("Output saved to matlab/output_track.csv")
