@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 
 func TestReceiver(t *testing.T) {
 	// Read data from matlab/output_track.csv
-	data, _ := ReadFromCsvFile("matlab/output_track.csv")
+	data, _ := ReadFromCsvFile("matlab/input_track.csv")
 	// Declare input channel to simulate input data
 	inputChannel := make(chan jack.AudioSample, 1024)
 	// Create a new receiver
@@ -20,9 +21,13 @@ func TestReceiver(t *testing.T) {
 		for _, sample := range data {
 			inputChannel <- sample
 		}
+		for {
+			inputChannel <- jack.AudioSample(rand.Float64() - 0.5)
+		}
 	}()
 	// Start the receiver
 	go receiver.Start()
 	// wait for the receiver to finish
-	time.Sleep(2000 * time.Millisecond)
+	time.Sleep(15 * time.Second)
+	Compare()
 }

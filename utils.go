@@ -139,8 +139,8 @@ func GenerateChirpPreamble(fstart, fend, fs, length int) []jack.AudioSample {
 	// Create the frequency profile f_p
 	f_p := make([]float64, n)
 	for i := 0; i < 240; i++ {
-		f_p[i] = 2e3 + 8e3*float64(i)/240
-		f_p[479-i] = 2e3 + 8e3*float64(i)/240
+		f_p[i] = 4e3 + 8e3*float64(i)/240
+		f_p[479-i] = 4e3 + 8e3*float64(i)/240
 	}
 	// Compute the cumulative integral (omega) using the trapezoidal rule
 	omega := make([]float64, n)
@@ -236,6 +236,7 @@ func Compare() {
 	error_count := 0
 	for i := 0; i < len(data_input); i++ {
 		if data_input[i] != data_output[i] {
+			fmt.Printf("%d ", i)
 			error_count++
 		}
 		// } else {

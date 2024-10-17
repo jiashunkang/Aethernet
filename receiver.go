@@ -26,7 +26,7 @@ func NewReceiver(inputChannel chan jack.AudioSample) *Receiver {
 		carrier[i] = math.Sin(2 * math.Pi * FC * t)
 	}
 	r.carrier = carrier
-	r.decode_data = make([]int, 0, 10000)
+	r.decode_data = make([]int, 0, 12000)
 	return r
 }
 
@@ -98,11 +98,14 @@ func (r *Receiver) Start() {
 		if totalFrame == 100 {
 			break
 		}
+		if i > 990000 {
+			break
+		}
 	}
 	fmt.Println("Total Frame:", totalFrame)
 	fmt.Println("Correct Frame:", correctFrameNum)
 	// Save received data to a OUTPUT.txt file
-	WriteOutputTxt(r.decode_data)
+	WriteOutputTxt(r.decode_data[:10000])
 }
 
 func sumProduct(a []float64, b []jack.AudioSample) float64 {

@@ -56,7 +56,11 @@ func (t *Transmitter) readFromFile(fileName string) {
 }
 func (t *Transmitter) Start() {
 	// Separate the data into 100 frames
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 101; i++ {
+		if i == 100 {
+			// last frame always goes wrong and I dont know why
+			i = 99
+		}
 		trivial_frame := make([]int, 8, 108)
 		// Get the next frame
 		frame := append(trivial_frame, t.data[i*100:(i+1)*100]...)
