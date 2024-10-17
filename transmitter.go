@@ -23,6 +23,7 @@ func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
 		outputChannel: outputChannel,
 	}
 	t.preamble = GenerateChirpPreamble(ChirpStartFreq, ChirpEndFreq, FS, PreambleLength)
+	SavePreambleToFile("matlab/preamble.csv", t.preamble)
 	t.readFromFile("INPUT.txt")
 	return t
 }
