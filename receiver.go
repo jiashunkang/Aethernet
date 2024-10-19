@@ -22,7 +22,7 @@ func NewReceiver(inputChannel chan jack.AudioSample) *Receiver {
 	carrier := make([]float64, 12000)
 
 	for i := 0; i < 12000; i++ {
-		t := float64(i) / 12000 // Time at each sample
+		t := float64(i) / 48000 // Time at each sample
 		carrier[i] = math.Sin(2 * math.Pi * FC * t)
 	}
 	r.carrier = carrier
@@ -56,10 +56,10 @@ func (r *Receiver) Start() {
 			syncFIFO = append(syncFIFO[1:], currentSample)
 			// syncPowerDebug = append(syncPowerDebug, sumProduct(syncFIFO, r.preamble)/200)
 			syncPowerDebug[i] = sumProduct(syncFIFO, r.preamble) / 200
-			if syncPowerDebug[i] > power*2 && syncPowerDebug[i] > syncPowerLocalMax && syncPowerDebug[i] > 0.02 {
+			if syncPowerDebug[i] > power*2 && syncPowerDebug[i] > syncPowerLocalMax && syncPowerDebug[i] > 0.08 {
 				syncPowerLocalMax = syncPowerDebug[i]
 				startIndex = i
-			} else if (i-startIndex > 200) && (startIndex != 0) {
+			} else if (i-startIndex > 240) && (startIndex != 0) {
 				syncPowerLocalMax = 0
 				syncFIFO = make([]float64, len(syncFIFO))
 				state = 1
@@ -84,8 +84,8 @@ func (r *Receiver) Start() {
 				r.decode_data = append(r.decode_data, decodeFIFOPowerBit[8:frameSize]...)
 
 				if !isEqual(crcCheck, decodeFIFOPowerBit[frameSize:]) {
-					fmt.Println("CRC Error")
 					totalFrame++
+					fmt.Println("CRC Error ", totalFrame)
 				} else {
 					correctFrameNum++
 					totalFrame++
