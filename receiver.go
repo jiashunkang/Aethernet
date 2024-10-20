@@ -56,7 +56,7 @@ func (r *Receiver) Start() {
 			syncFIFO = append(syncFIFO[1:], currentSample)
 			// syncPowerDebug = append(syncPowerDebug, sumProduct(syncFIFO, r.preamble)/200)
 			syncPowerDebug[i] = sumProduct(syncFIFO, r.preamble) / 200
-			if syncPowerDebug[i] > power*2 && syncPowerDebug[i] > syncPowerLocalMax && syncPowerDebug[i] > 0.08 {
+			if syncPowerDebug[i] > power*2 && syncPowerDebug[i] > syncPowerLocalMax && syncPowerDebug[i] > SYNC_PARA {
 				syncPowerLocalMax = syncPowerDebug[i]
 				startIndex = i
 			} else if (i-startIndex > 240) && (startIndex != 0) {
