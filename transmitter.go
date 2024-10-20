@@ -55,17 +55,22 @@ func (t *Transmitter) readFromFile(fileName string) {
 	fmt.Println("First ten bits:", t.data[:10])
 }
 func (t *Transmitter) Start() {
+	fmt.Println("Start transmitting ...")
+	exit_flag := false
 	// Separate the data into 100 frames
 	for i := 0; i < 101; i++ {
 		if i == 100 {
 			// last frame always goes wrong and I dont know why
 			i = 99
+			exit_flag = true
 		}
 		trivial_frame := make([]int, 8, 108)
 		// Get the next frame
 		frame := append(trivial_frame, t.data[i*100:(i+1)*100]...)
 		// Add CRC redundancy bits
 		frameCRC := append(frame, CRC8(frame)...)
+		// Add Error correction redundancy bits
+		// frameEEC = ;
 		// Modulate the frame
 		frameWave := modulate(frameCRC)
 		// frameWave = append(frameWave, make([]jack.AudioSample, randomSpace)...)
@@ -86,7 +91,11 @@ func (t *Transmitter) Start() {
 		for i := 0; i < randomSpace; i++ {
 			t.outputChannel <- 0.0
 		}
+		if exit_flag {
+			break
+		}
 	}
+	fmt.Println("End transmitting ...")
 }
 
 func modulate(frameCRC []int) []jack.AudioSample {

@@ -31,6 +31,7 @@ func NewReceiver(inputChannel chan jack.AudioSample) *Receiver {
 }
 
 func (r *Receiver) Start() {
+	fmt.Println("Start Receiving ...")
 	// Sample variables (replace with actual data)
 	RxFIFO := make([]float64, 0, 1000000)
 
@@ -41,12 +42,10 @@ func (r *Receiver) Start() {
 	syncPowerDebug := make([]float64, 1000000)
 	var decodeFIFO []float64
 	var totalFrame, correctFrameNum int
-	frameSize := 108
+	frameSize := 108 // id of syncpower debug
 	i := -1
-	for jacksample := range r.inputChannel {
-		// if i%1000 == 0 {
-		// 	fmt.Println(i)
-		// }
+	for {
+		jacksample := <-r.inputChannel
 		i++
 		currentSample := float64(jacksample)
 		RxFIFO = append(RxFIFO, currentSample)
@@ -106,6 +105,10 @@ func (r *Receiver) Start() {
 	fmt.Println("Correct Frame:", correctFrameNum)
 	// Save received data to a OUTPUT.txt file
 	WriteOutputTxt(r.decode_data[:10000])
+	fmt.Println("End receiving ...")
+	for {
+		_ = r.inputChannel
+	}
 }
 
 func sumProduct(a []float64, b []jack.AudioSample) float64 {

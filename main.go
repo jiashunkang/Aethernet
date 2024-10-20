@@ -25,8 +25,8 @@ func main() {
 	systemInPort := client.GetPortByName("system:capture_1")
 	systemOutPort := client.GetPortByName("system:playback_2")
 
-	inputChannel := make(chan jack.AudioSample, 1024)
-	outputChannel := make(chan jack.AudioSample, 1024)
+	inputChannel := make(chan jack.AudioSample, 4096)
+	outputChannel := make(chan jack.AudioSample, 4096)
 
 	transmitter := NewTransmitter(outputChannel)
 	receiver := NewReceiver(inputChannel)
@@ -35,12 +35,6 @@ func main() {
 	process := func(nframes uint32) int {
 		inBuffer := inPort.GetBuffer(nframes)
 		outBuffer := outPort.GetBuffer(nframes)
-
-		for _, sample := range inBuffer {
-			data_in = append(data_in, sample)
-			inputChannel <- sample
-
-		}
 
 		for i := range outBuffer {
 			select {
@@ -52,6 +46,12 @@ func main() {
 				data_out = append(data_out, jack.AudioSample(0.0))
 				outBuffer[i] = 0.0
 			}
+		}
+
+		for _, sample := range inBuffer {
+			data_in = append(data_in, sample)
+			inputChannel <- sample
+
 		}
 
 		return 0
