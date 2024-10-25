@@ -26,7 +26,7 @@ func main() {
 	systemOutPort := client.GetPortByName("system:playback_2")
 
 	inputChannel := make(chan jack.AudioSample, 4096)
-	outputChannel := make(chan jack.AudioSample, 4096)
+	outputChannel := make(chan jack.AudioSample, 10000000)
 
 	transmitter := NewTransmitter(outputChannel)
 	receiver := NewReceiver(inputChannel)
@@ -42,7 +42,6 @@ func main() {
 				outBuffer[i] = sample
 				data_out = append(data_out, sample)
 			default:
-				inputChannel <- jack.AudioSample(0.0)
 				data_out = append(data_out, jack.AudioSample(0.0))
 				outBuffer[i] = 0.0
 			}

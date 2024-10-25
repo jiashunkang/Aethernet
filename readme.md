@@ -58,6 +58,13 @@ go build
 ### Go语言
 大写字母的函数变量是可以被其他文件引用的，小写字母的函数和变量只能在同一个文件里被引用
 
+# 多线程问题：Channel大小 和 Jack buffer大小 对正确率影响
+1. Transmitter outputchannel和outbuffer问题
+   1. transimitter需要做的是把数字的0、1bit调制成一串float32数组，并把这串数组传给outputchannel，然后通过go的channel将float32数值传给jack的callback函数process中的outbuffer[]。transimitter处理数组是很快的，播放声音又被限制在48000hz比较慢，所以每次处理到outputchannel size这么多的值，channel就会阻塞，transmitter线程就会卡住。至于卡住会导致什么后果我还没仔细研究，但是如果我把outputchannel调的非常大，也就是杜绝这种卡顿现象出现，正确率由每次错30bit左右上升到每次错1-2bit甚至全对。
+2. Receiver inputChannel和inputBuffer
+   1. inputChannel相对来说不会像outputChannel那样容易因为值传递的太快导致被装满而阻塞。inputChannel和Receiver面临的问题是，接收声音的频率比较慢，所以Receiver可能因为没有等到值而卡顿，为了避免卡顿，可以在jack里把buffer的大小调小一点比如32和64，减少Receiver卡顿的情况。但这个问题似乎对于正确率结果影响不大。
+   2. 为什么会注意到这个问题？因为我写了一个receiver_test.go,我把麦克风接收到的输入存了一个备份（input_track.csv）用来调试，结果发现居然实时测量会比之后调试多错几个bit？？于是怀疑是线程和同步导致的错误，但在解决了transmitter的问题后，我就再也没有复现出这个问题了。
+
 
 
 

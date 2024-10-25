@@ -28,6 +28,6 @@ func TestReceiver(t *testing.T) {
 	// Start the receiver
 	go receiver.Start()
 	// wait for the receiver to finish
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
 	Compare()
 }
