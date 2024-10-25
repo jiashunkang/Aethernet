@@ -1,0 +1,28 @@
+package main
+
+import (
+	"math/rand"
+	"os"
+	"time"
+)
+
+func generateRandomBits() {
+	// Seed the random number generator with the current time
+	rand.Seed(time.Now().UnixNano())
+
+	// Open or create the file
+	file, err := os.Create("random_bits.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// Generate 10,000 random bits and write to the file
+	for i := 0; i < 10000; i++ {
+		bit := rand.Intn(2) // Generates 0 or 1
+		_, err := file.WriteString(string('0' + bit))
+		if err != nil {
+			panic(err)
+		}
+	}
+}
