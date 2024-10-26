@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -77,4 +78,17 @@ func TestCRC8(t *testing.T) {
 // Test: Compare INPUT.txt and matlab/decode_output.txt
 func TestDecode(t *testing.T) {
 	Compare()
+}
+
+func TestCRCAffectData(t *testing.T) {
+	// data = 1,1,1,0,1,0,0,0
+	data := []int{1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1}
+	data_copy := make([]int, len(data))
+	copy(data_copy, data)
+	_ = CRC8(data)
+	if !isEqual(data, data_copy) {
+		t.Errorf("CRC8 function should not affect the data")
+	}
+	fmt.Println("Data after CRC8:", data)
+
 }

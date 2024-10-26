@@ -42,7 +42,7 @@ func (r *Receiver) Start() {
 	syncPowerDebug := make([]float64, 1000000)
 	var decodeFIFO []float64
 	var totalFrame, correctFrameNum int
-	frameSize := 108 // id of syncpower debug
+	frameSize := 100 // id of syncpower debug
 	i := -1
 	for {
 		jacksample := <-r.inputChannel
@@ -80,7 +80,7 @@ func (r *Receiver) Start() {
 				}
 
 				crcCheck := CRC8(decodeFIFOPowerBit[:frameSize])
-				r.decode_data = append(r.decode_data, decodeFIFOPowerBit[8:frameSize]...)
+				r.decode_data = append(r.decode_data, decodeFIFOPowerBit[:frameSize]...)
 
 				if !isEqual(crcCheck, decodeFIFOPowerBit[frameSize:]) {
 					totalFrame++

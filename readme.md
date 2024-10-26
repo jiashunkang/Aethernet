@@ -56,7 +56,9 @@ go build
 1. 处理int数组存的{0，1，0，1}，转换成byte形式的0101，方便调用外部的crc算法。
 
 ### Go语言
-大写字母的函数变量是可以被其他文件引用的，小写字母的函数和变量只能在同一个文件里被引用
+- 大写字母的函数变量是可以被其他文件引用的，小写字母的函数和变量只能在同一个文件里被引用
+- 修好了每个frame前8个bit必错的问题：原因是frame是从data里切出来的一个slice，对于frameCRC来说append(frame,CRC(frame))似乎并不能达到预期的效果，需要提前给frameCRC分配好内存make108大小的数组
+- 修好了最后一个frame错误率很高的问题，大概是因为outputbuffer延迟问题吧。。
 
 # 多线程问题：Channel大小 和 Jack buffer大小 对正确率影响
 1. Transmitter outputchannel和outbuffer问题
