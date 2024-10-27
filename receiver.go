@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
+	"os"
 
 	"github.com/xthexder/go-jack"
 )
@@ -26,7 +28,7 @@ func NewReceiver(inputChannel chan jack.AudioSample) *Receiver {
 		carrier[i] = math.Sin(2 * math.Pi * FC * t)
 	}
 	r.carrier = carrier
-	r.decode_data = make([]int, 0, 12000)
+	r.decode_data = make([]int, 0, 50000)
 	return r
 }
 
@@ -54,7 +56,7 @@ func (r *Receiver) Start() {
 		if state == 0 {
 			syncFIFO = append(syncFIFO[1:], currentSample)
 			// syncPowerDebug = append(syncPowerDebug, sumProduct(syncFIFO, r.preamble)/200)
-			syncPowerDebug[i] = sumProduct(syncFIFO, r.preamble) / 200
+			syncPowerDebug[i] = sumProduct(syncFIFO, r.preamble) / 20
 			if syncPowerDebug[i] > power*2 && syncPowerDebug[i] > syncPowerLocalMax && syncPowerDebug[i] > SYNC_PARA {
 				syncPowerLocalMax = syncPowerDebug[i]
 				startIndex = i
@@ -67,12 +69,11 @@ func (r *Receiver) Start() {
 			}
 		} else if state == 1 {
 			decodeFIFO = append(decodeFIFO, currentSample)
-			if len(decodeFIFO) == 48*(frameSize+8) {
-				decodeFIFORemovecarrier := smooth(multiply(decodeFIFO, r.carrier[:len(decodeFIFO)]), 10)
+			if len(decodeFIFO) == 4*(frameSize+8) {
 				decodeFIFOPowerBit := make([]int, frameSize+8)
 
 				for j := 0; j < frameSize+8; j++ {
-					if sum(decodeFIFORemovecarrier[10+j*48:30+j*48]) > 0 {
+					if sum(decodeFIFO[1+j*4:2+j*4]) > 0 {
 						decodeFIFOPowerBit[j] = 1
 					} else {
 						decodeFIFOPowerBit[j] = 0
@@ -94,7 +95,7 @@ func (r *Receiver) Start() {
 				state = 0
 			}
 		}
-		if totalFrame == 100 {
+		if totalFrame == 500 {
 			break
 		}
 		if i > 990000 {
@@ -103,8 +104,17 @@ func (r *Receiver) Start() {
 	}
 	fmt.Println("Total Frame:", totalFrame)
 	fmt.Println("Correct Frame:", correctFrameNum)
-	// Save received data to a OUTPUT.txt file
-	WriteOutputTxt(r.decode_data[:10000])
+	// Save received data to OUTPUT.bin
+	byteData := ConvertIntArrayToBitArray(r.decode_data)
+	file, err := os.Create("compare/OUTPUT.bin")
+	if err != nil {
+		log.Fatalf("Error creating OUTPUT.bin: %v", err)
+	}
+	defer file.Close()
+	_, err = file.Write(byteData)
+	if err != nil {
+		log.Fatalf("Error writing OUTPUT.bin: %v", err)
+	}
 	fmt.Println("End receiving ...")
 	for {
 		_ = r.inputChannel

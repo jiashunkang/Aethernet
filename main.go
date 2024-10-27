@@ -92,7 +92,7 @@ func main() {
 		fmt.Println("Output saved to matlab/output_track.csv")
 	}
 	// Compare Result
-	Compare()
+	CompareBin()
 	fmt.Println("Done.")
 
 }

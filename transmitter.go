@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -13,9 +11,10 @@ import (
 )
 
 type Transmitter struct {
-	outputChannel chan jack.AudioSample
-	preamble      []jack.AudioSample
-	data          []int
+	MAC_frame_channel chan []int
+	outputChannel     chan jack.AudioSample
+	preamble          []jack.AudioSample
+	data              []int
 }
 
 func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
@@ -24,7 +23,12 @@ func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
 	}
 	t.preamble = GenerateChirpPreamble(ChirpStartFreq, ChirpEndFreq, FS, PreambleLength)
 	SavePreambleToFile("matlab/preamble.csv", t.preamble)
-	t.readFromFile("compare/INPUT.txt")
+	filePath := "compare/INPUT.bin"
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+	}
+	t.data = ConvertBitArrayToIntArray(data, 8*len(data))
 	return t
 }
 
@@ -57,7 +61,8 @@ func (t *Transmitter) readFromFile(fileName string) {
 func (t *Transmitter) Start() {
 	fmt.Println("Start transmitting ...")
 	// Separate the data into 100 frames
-	for i := 0; i < 100; i++ {
+	frameNum := len(t.data) / 100
+	for i := 0; i < frameNum; i++ {
 		// Get the next frame
 		frame := t.data[i*100 : (i+1)*100]
 		// Add CRC redundancy bits
@@ -68,13 +73,6 @@ func (t *Transmitter) Start() {
 		// frameEEC = ;
 		// Modulate the frame
 		frameWave := modulate(frameCRC)
-		// frameWave = append(frameWave, make([]jack.AudioSample, randomSpace)...)
-
-		// Randomly add silence between frames
-		randomSpace := rand.Intn(100)
-		for i := 0; i < randomSpace; i++ {
-			t.outputChannel <- 0.0
-		}
 		// Play Preamble
 		for _, sample := range t.preamble {
 			t.outputChannel <- jack.AudioSample(sample)
@@ -83,26 +81,41 @@ func (t *Transmitter) Start() {
 		for _, sample := range frameWave {
 			t.outputChannel <- jack.AudioSample(sample)
 		}
-		for i := 0; i < randomSpace; i++ {
-			t.outputChannel <- 0.0
-		}
 	}
 	fmt.Println("End transmitting ...")
 }
 
+func (t *Transmitter) Send() {
+	mframe := <-t.MAC_frame_channel
+	mframeCRC := make([]int, len(mframe), 108)
+	copy(mframeCRC, mframe)
+	// Add CRC redundancy bits
+	crc := CRC8(mframe)
+	// Modeulate the frame
+	for _, sample := range t.preamble {
+		t.outputChannel <- jack.AudioSample(sample)
+	}
+	for _, sample := range modulate(mframe) {
+		t.outputChannel <- jack.AudioSample(sample)
+	}
+	for _, sample := range modulate(crc) {
+		t.outputChannel <- jack.AudioSample(sample)
+	}
+
+}
+
 func modulate(frameCRC []int) []jack.AudioSample {
-	frameWave := make([]jack.AudioSample, len(frameCRC)*48)
-	// Use PSK modulation with carrier frequency of 10 kHz
-	f := float64(10000) // Carrier frequency
+	frameWave := make([]jack.AudioSample, len(frameCRC)*4)
+	// Use Line coding  {1,1,1,1} is 1, {-1,-1,-1,-1} is 0
 	for i, bit := range frameCRC {
 		// Define phase shift for PSK: 0 -> phase 0, 1 -> phase π
-		phase := 0.0
+		offset := 0.0
 		if bit == 0 {
-			phase = math.Pi
+			offset = 2.0
 		}
-		for j := 0; j < 48; j++ {
+		for j := 0; j < 4; j++ {
 			// PSK modulation with phase shift
-			frameWave[i*48+j] = jack.AudioSample(math.Sin(2*math.Pi*float64(i*48+j)*f/float64(FS) + phase))
+			frameWave[i*4+j] = jack.AudioSample(1.0 - offset)
 		}
 	}
 	return frameWave

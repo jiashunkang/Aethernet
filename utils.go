@@ -129,7 +129,7 @@ func GenerateChirpPreamble(fstart, fend, fs, length int) []jack.AudioSample {
 	// make a preamble array
 	preamble := make([]jack.AudioSample, length)
 	// Define the number of samples
-	n := 480
+	n := length
 	time := make([]float64, n)
 	dt := 1.0 / 48000.0 // Assuming a 48 kHz sample rate
 	// Create the time vector t
@@ -138,9 +138,9 @@ func GenerateChirpPreamble(fstart, fend, fs, length int) []jack.AudioSample {
 	}
 	// Create the frequency profile f_p
 	f_p := make([]float64, n)
-	for i := 0; i < 240; i++ {
+	for i := 0; i < PreambleLength/2; i++ {
 		f_p[i] = 4e3 + 8e3*float64(i)/240
-		f_p[479-i] = 4e3 + 8e3*float64(i)/240
+		f_p[PreambleLength-1-i] = 4e3 + 8e3*float64(i)/240
 	}
 	// Compute the cumulative integral (omega) using the trapezoidal rule
 	omega := make([]float64, n)
@@ -249,4 +249,23 @@ func Compare() {
 	// Calculate error rate
 	fmt.Println("Total error is: ", error_count, " bit")
 	fmt.Printf("Error rate is: %.2f\n", float32(error_count)/10000)
+}
+
+func CompareBin() {
+	inputData, err := os.ReadFile("compare/INPUT.bin")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+	}
+	outputData, err := os.ReadFile("compare/OUTPUT.bin")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+	}
+	byteError := 0
+	for i, sample := range outputData {
+		if inputData[i] != sample {
+			byteError++
+		}
+	}
+	fmt.Println("byteError is ", byteError)
+	fmt.Println("input length, output length", len(inputData), len(outputData))
 }

@@ -29,5 +29,5 @@ func TestReceiver(t *testing.T) {
 	go receiver.Start()
 	// wait for the receiver to finish
 	time.Sleep(5 * time.Second)
-	Compare()
+	CompareBin()
 }

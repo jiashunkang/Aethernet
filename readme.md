@@ -67,6 +67,7 @@ go build
    1. inputChannel相对来说不会像outputChannel那样容易因为值传递的太快导致被装满而阻塞。inputChannel和Receiver面临的问题是，接收声音的频率比较慢，所以Receiver可能因为没有等到值而卡顿，为了避免卡顿，可以在jack里把buffer的大小调小一点比如32和64，减少Receiver卡顿的情况。但这个问题似乎对于正确率结果影响不大。
    2. 为什么会注意到这个问题？因为我写了一个receiver_test.go,我把麦克风接收到的输入存了一个备份（input_track.csv）用来调试，结果发现居然实时测量会比之后调试多错几个bit？？于是怀疑是线程和同步导致的错误，但在解决了transmitter的问题后，我就再也没有复现出这个问题了。
 
+# Project 2
 
 
 
