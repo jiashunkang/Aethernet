@@ -105,17 +105,19 @@ func (t *Transmitter) Send() {
 }
 
 func modulate(frameCRC []int) []jack.AudioSample {
-	frameWave := make([]jack.AudioSample, len(frameCRC)*4)
-	// Use Line coding  {1,1,1,1} is 1, {-1,-1,-1,-1} is 0
+	frameWave := make([]jack.AudioSample, 4*len(frameCRC))
+	// Use Line coding  {1,1,1,1} is 0, {-1,-1,-1,-1} is 1
 	for i, bit := range frameCRC {
-		// Define phase shift for PSK: 0 -> phase 0, 1 -> phase π
-		offset := 0.0
 		if bit == 0 {
-			offset = 2.0
-		}
-		for j := 0; j < 4; j++ {
-			// PSK modulation with phase shift
-			frameWave[i*4+j] = jack.AudioSample(1.0 - offset)
+			frameWave[i*4] = 1
+			frameWave[i*4+1] = 1
+			frameWave[i*4+2] = 1
+			frameWave[i*4+3] = 1
+		} else {
+			frameWave[i*4] = -1
+			frameWave[i*4+1] = -1
+			frameWave[i*4+2] = -1
+			frameWave[i*4+3] = -1
 		}
 	}
 	return frameWave

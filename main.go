@@ -78,14 +78,14 @@ func main() {
 	time.Sleep(15 * time.Second)
 	fmt.Println("15 seconds passed, stopping...")
 	// Write the data to a file, reuse function from utils
-	err := SavePreambleToFile("matlab/input_track.csv", data_in)
+	err := SavePreambleToFile("track/input_track.csv", data_in)
 	if err != nil {
 		fmt.Println("Error saving preamble:", err)
 	} else {
 		fmt.Println("Output saved to matlab/input_track.csv")
 	}
 	// Write the data to a file, reuse function from utils
-	err_out := SavePreambleToFile("matlab/output_track.csv", data_out)
+	err_out := SavePreambleToFile("track/output_track.csv", data_out)
 	if err_out != nil {
 		fmt.Println("Error saving preamble:", err)
 	} else {

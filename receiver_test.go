@@ -10,7 +10,7 @@ import (
 
 func TestReceiver(t *testing.T) {
 	// Read data from matlab/output_track.csv
-	data, _ := ReadFromCsvFile("matlab/input_track.csv")
+	data, _ := ReadFromCsvFile("track/input_track.csv")
 	// Declare input channel to simulate input data
 	inputChannel := make(chan jack.AudioSample, 1024)
 	// Create a new receiver

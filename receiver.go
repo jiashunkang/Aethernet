@@ -34,6 +34,7 @@ func NewReceiver(inputChannel chan jack.AudioSample) *Receiver {
 
 func (r *Receiver) Start() {
 	fmt.Println("Start Receiving ...")
+	error_bit := 0
 	// Sample variables (replace with actual data)
 	RxFIFO := make([]float64, 0, 1000000)
 
@@ -74,9 +75,9 @@ func (r *Receiver) Start() {
 
 				for j := 0; j < frameSize+8; j++ {
 					if sum(decodeFIFO[1+j*4:2+j*4]) > 0 {
-						decodeFIFOPowerBit[j] = 1
-					} else {
 						decodeFIFOPowerBit[j] = 0
+					} else {
+						decodeFIFOPowerBit[j] = 1
 					}
 				}
 
@@ -102,6 +103,7 @@ func (r *Receiver) Start() {
 			break
 		}
 	}
+	fmt.Println("Error bit:", error_bit)
 	fmt.Println("Total Frame:", totalFrame)
 	fmt.Println("Correct Frame:", correctFrameNum)
 	// Save received data to OUTPUT.bin
