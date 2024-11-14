@@ -1,20 +1,14 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
+	"time"
 
 	"github.com/xthexder/go-jack"
 )
 
 type Transmitter struct {
-	MAC_frame_channel chan []int
-	outputChannel     chan jack.AudioSample
-	preamble          []jack.AudioSample
-	data              []int
+	outputChannel chan jack.AudioSample
+	preamble      []jack.AudioSample
 }
 
 func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
@@ -23,85 +17,42 @@ func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
 	}
 	t.preamble = GenerateChirpPreamble(ChirpStartFreq, ChirpEndFreq, FS, PreambleLength)
 	SavePreambleToFile("matlab/preamble.csv", t.preamble)
-	filePath := "compare/INPUT.bin"
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		fmt.Println("Error reading file:", err)
-	}
-	t.data = ConvertBitArrayToIntArray(data, 8*len(data))
 	return t
 }
 
-func (t *Transmitter) readFromFile(fileName string) {
-	// Open the file
-	file, err := os.Open(fileName)
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
-	t.data = make([]int, 0, 10000)
-	// Read the file
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		numbers := strings.Fields(line)
-		for _, num := range numbers {
-			// 将字符串转换为整数
-			value, err := strconv.Atoi(num)
-			if err != nil {
-				fmt.Println("Error converting string to int:", err)
-				continue
-			}
-			t.data = append(t.data, value)
-		}
-	}
-	fmt.Println("Data Length:", len(t.data))
-	fmt.Println("First ten bits:", t.data[:10])
-}
-func (t *Transmitter) Start() {
-	fmt.Println("Start transmitting ...")
-	// Separate the data into 100 frames
-	frameNum := len(t.data) / 100
-	for i := 0; i < frameNum; i++ {
-		// Get the next frame
-		frame := t.data[i*100 : (i+1)*100]
-		// Add CRC redundancy bits
-		frameCRC := make([]int, len(frame), 108)
-		copy(frameCRC, frame)
-		frameCRC = append(frameCRC, CRC8(frame)...)
-		// Add Error correction redundancy bits
-		// frameEEC = ;
-		// Modulate the frame
-		frameWave := modulate(frameCRC)
-		// Play Preamble
-		for _, sample := range t.preamble {
-			t.outputChannel <- jack.AudioSample(sample)
-		}
-		// Play the audio
-		for _, sample := range frameWave {
-			t.outputChannel <- jack.AudioSample(sample)
-		}
-	}
-	fmt.Println("End transmitting ...")
-}
-
-func (t *Transmitter) Send() {
-	mframe := <-t.MAC_frame_channel
-	mframeCRC := make([]int, len(mframe), 108)
-	copy(mframeCRC, mframe)
+func (t *Transmitter) Send(mframe []int, timeoutChan, freeTimeOutChan chan bool, isACK bool) {
+	mframePhy := make([]int, 9+len(mframe))
+	copy(mframePhy[0:9], IntToBinaryArray(len(mframe)))
+	copy(mframePhy[9:], mframe)
 	// Add CRC redundancy bits
-	crc := CRC8(mframe)
+	crc := CRC8(mframePhy)
 	// Modeulate the frame
 	for _, sample := range t.preamble {
 		t.outputChannel <- jack.AudioSample(sample)
 	}
-	for _, sample := range modulate(mframe) {
+	for _, sample := range modulate(mframePhy) {
 		t.outputChannel <- jack.AudioSample(sample)
 	}
 	for _, sample := range modulate(crc) {
 		t.outputChannel <- jack.AudioSample(sample)
 	}
-
+	if isACK {
+		return
+	}
+	counter := 0
+	for {
+		select {
+		case <-freeTimeOutChan:
+			return
+		default:
+			time.Sleep(1 * time.Millisecond)
+			counter++
+			if counter > 1000 {
+				timeoutChan <- true
+				return
+			}
+		}
+	}
 }
 
 func modulate(frameCRC []int) []jack.AudioSample {

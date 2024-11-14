@@ -69,6 +69,33 @@ go build
 
 # Project 2
 
+## frame结构
+### MAC层
+- Data
+   - 读入数据,把byte切成bit
+   - 封装mac frame **Dest(1bit) Src(1bit) Type(1bit) ID(bit) Data(100bit)** 总计104bit
+     - id bit用来区分前后发送frame的不同，举个例子：Receiver收到了 data frame 1（id bit = 0），返回了ACK，但是ACK传输中丢失了，transmitter在timeout后又发了一次data frame 1，有了id bit我们就知道这个frame是重发的。如果transmitter发data frame 2（id = 1）那么receiver收到就知道这是新的frame可以存起来。
+     - 因为我们的窗口大小只有1，即发送一个frame，等到ACK才发下一个，所以只用一个bit表示id就够了，如果滑动窗口实现就需要更多bit。
+   - 将frame传递给物理层transmitter，封装**preamble（44bit） + mac length in bits(9bit 即512 留出冗余) + macframe + crc**
+- ACK
+    - 封装mac frame **Dest(1bit) Src(1bit) Type(1bit)** 总计3bit
+    - 将frame传递给物理层transmitter，**封装preamble（44bit） + mac length in bits(9bit 即512 留出冗余) + macframe + crc**
+- 解调步骤
+  - 照搬receiver的sync
+  - 如果接收到sync信号，切换为读取header模式
+  - 解码mac length + macframe的前3个bit（src，dest，type）
+    - 先判断src dest是不是自己发自己，是的话就切回寻找sync的状态
+    - Data type == 0
+      - 照旧处理，收集一个macframe，返回给MAC层，等mac去发ack
+      - 如果crc error就返回error
+    - ACK type == 1
+      - 如果满足 CRC 正确，那么就返回MAC层成功
+
+### Timeout机制
 
 
-
+### 线程安排
+- MAC线程，运行状态机
+- Receiver线程 
+- transmitter每次传输时由MAC创建go transimtter.send
+  - 发送完后维护timeout channel，当计时(time.sleep)达到timeout时发起重传  
