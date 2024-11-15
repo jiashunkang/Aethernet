@@ -9,6 +9,7 @@ const (
 	PreambleLength = 48    // Length of preamble signal
 	FC             = 10000 // Carrier frequency
 	SYNC_PARA      = 0.04
+	DATA_SIZE      = 500 //  500 data bit per frame
 )
 
 // PHY frame

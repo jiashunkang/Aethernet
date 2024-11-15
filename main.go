@@ -27,9 +27,7 @@ func main() {
 
 	inputChannel := make(chan jack.AudioSample, 4096)
 	outputChannel := make(chan jack.AudioSample, 10000000)
-
-	transmitter := NewTransmitter(outputChannel)
-	receiver := NewReceiver(inputChannel)
+	mac := NewMAC(1, 1, outputChannel, inputChannel)
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
@@ -69,14 +67,11 @@ func main() {
 	client.ConnectPorts(systemInPort, inPort)
 	client.ConnectPorts(outPort, systemOutPort)
 
-	// Start Transmitting
-	go transmitter.Start()
-	//Start Receiving
-	go receiver.Start()
+	go mac.Start()
 	// fmt.Println("Press enter or return to quit...")
 	// bufio.NewReader(os.Stdin).ReadString('\n')
-	time.Sleep(15 * time.Second)
-	fmt.Println("15 seconds passed, stopping...")
+	time.Sleep(60 * time.Second)
+	fmt.Println("30 seconds passed, stopping...")
 	// Write the data to a file, reuse function from utils
 	err := SavePreambleToFile("track/input_track.csv", data_in)
 	if err != nil {

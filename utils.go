@@ -266,6 +266,34 @@ func CompareBin() {
 			byteError++
 		}
 	}
+	bitError := 0
+	bitInput := ConvertBitArrayToIntArray(inputData, 8*len(inputData))
+	bitOutput := ConvertBitArrayToIntArray(outputData, 8*len(outputData))
+	for i, sample := range bitOutput {
+		if bitInput[i] != sample {
+			bitError++
+		}
+	}
+	fmt.Println("bitError is ", bitError)
 	fmt.Println("byteError is ", byteError)
 	fmt.Println("input length, output length", len(inputData), len(outputData))
+}
+
+// Input an int(0-500), return a 9-bit binary array
+func IntToBinaryArray(num int) []int {
+	binary := make([]int, 9)
+	for i := 8; i >= 0; i-- {
+		binary[i] = num % 2
+		num /= 2
+	}
+	return binary
+}
+
+// Input a 9-bit binary array, return an int
+func BinaryArrayToInt(binary []int) int {
+	num := 0
+	for i := 0; i < 9; i++ {
+		num += binary[i] * int(math.Pow(2, float64(8-i)))
+	}
+	return num
 }

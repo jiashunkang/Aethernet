@@ -77,7 +77,7 @@ func TestCRC8(t *testing.T) {
 
 // Test: Compare INPUT.txt and matlab/decode_output.txt
 func TestDecode(t *testing.T) {
-	Compare()
+	CompareBin()
 }
 
 func TestCRCAffectData(t *testing.T) {
@@ -91,4 +91,22 @@ func TestCRCAffectData(t *testing.T) {
 	}
 	fmt.Println("Data after CRC8:", data)
 
+}
+
+func TestIntToBinaryArray1(t *testing.T) {
+	num := 3
+	result := IntToBinaryArray(num)
+	expected := []int{0, 0, 0, 0, 0, 0, 0, 1, 1}
+	if !isEqual(result, expected) {
+		t.Errorf("IntToBinaryArray(%d) = %v; want %v", num, result, expected)
+	}
+}
+
+func TestIntToBinaryArray2(t *testing.T) {
+	num := 104
+	result := IntToBinaryArray(num)
+	expected := []int{0, 0, 1, 1, 0, 1, 0, 0, 0}
+	if !isEqual(result, expected) {
+		t.Errorf("IntToBinaryArray(%d) = %v; want %v", num, result, expected)
+	}
 }

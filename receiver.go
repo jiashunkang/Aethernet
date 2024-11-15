@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"os"
 
@@ -11,41 +10,56 @@ import (
 
 type Receiver struct {
 	inputChannel chan jack.AudioSample
+	ackChan      chan ACK
+	dataChan     chan Data
 	preamble     []jack.AudioSample
-	decode_data  []int
-	carrier      []float64
 }
 
-func NewReceiver(inputChannel chan jack.AudioSample) *Receiver {
+type DebugLog struct {
+	AckReceived  int
+	DataReceived int
+	CRCError     int
+}
+
+func (debug *DebugLog) Log() {
+	file, err := os.Create("log/receiver.log")
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+	str := fmt.Sprintf("AckReceived: %d\n", debug.AckReceived)
+	str += fmt.Sprintf("DataReceived: %d\n", debug.DataReceived)
+	str += fmt.Sprintf("CRCError: %d\n", debug.CRCError)
+	_, err = fmt.Fprintf(file, str, debug.AckReceived, debug.DataReceived)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+	}
+}
+
+func NewReceiver(inputChannel chan jack.AudioSample, ackChan chan ACK, dataChan chan Data) *Receiver {
 	r := &Receiver{
 		inputChannel: inputChannel,
+		ackChan:      ackChan,
+		dataChan:     dataChan,
 	}
 	r.preamble = GenerateChirpPreamble(ChirpStartFreq, ChirpEndFreq, FS, PreambleLength)
-	carrier := make([]float64, 12000)
-
-	for i := 0; i < 12000; i++ {
-		t := float64(i) / 48000 // Time at each sample
-		carrier[i] = math.Sin(2 * math.Pi * FC * t)
-	}
-	r.carrier = carrier
-	r.decode_data = make([]int, 0, 50000)
 	return r
 }
 
 func (r *Receiver) Start() {
 	fmt.Println("Start Receiving ...")
-	error_bit := 0
+	debug := DebugLog{}
+	defer debug.Log()
 	// Sample variables (replace with actual data)
-	RxFIFO := make([]float64, 0, 1000000)
+	RxFIFO := make([]float64, 0, 10000000)
 
 	var power, syncPowerLocalMax float64
 	var state, startIndex int
 	syncFIFO := make([]float64, PreambleLength)
-	powerDebug := make([]float64, 0, 1000000)
-	syncPowerDebug := make([]float64, 1000000)
 	var decodeFIFO []float64
-	var totalFrame, correctFrameNum int
-	frameSize := 100 // id of syncpower debug
+	mframeSize := 104 // mac frame size, read from the header
+	hasRecordMframeSize := false
 	i := -1
 	for {
 		jacksample := <-r.inputChannel
@@ -53,15 +67,13 @@ func (r *Receiver) Start() {
 		currentSample := float64(jacksample)
 		RxFIFO = append(RxFIFO, currentSample)
 		power = power*(1-1.0/64) + math.Pow(currentSample, 2)/64
-		powerDebug = append(powerDebug, power)
 		if state == 0 {
 			syncFIFO = append(syncFIFO[1:], currentSample)
-			// syncPowerDebug = append(syncPowerDebug, sumProduct(syncFIFO, r.preamble)/200)
-			syncPowerDebug[i] = sumProduct(syncFIFO, r.preamble) / 20
-			if syncPowerDebug[i] > power*2 && syncPowerDebug[i] > syncPowerLocalMax && syncPowerDebug[i] > SYNC_PARA {
-				syncPowerLocalMax = syncPowerDebug[i]
+			syncPowerDebug := sumProduct(syncFIFO, r.preamble) / 20
+			if syncPowerDebug > power*2 && syncPowerDebug > syncPowerLocalMax && syncPowerDebug > SYNC_PARA {
+				syncPowerLocalMax = syncPowerDebug
 				startIndex = i
-			} else if (i-startIndex > 240) && (startIndex != 0) {
+			} else if (i-startIndex > 24) && (startIndex != 0) {
 				syncPowerLocalMax = 0
 				syncFIFO = make([]float64, len(syncFIFO))
 				state = 1
@@ -70,57 +82,63 @@ func (r *Receiver) Start() {
 			}
 		} else if state == 1 {
 			decodeFIFO = append(decodeFIFO, currentSample)
-			if len(decodeFIFO) == 4*(frameSize+8) {
-				decodeFIFOPowerBit := make([]int, frameSize+8)
-
-				for j := 0; j < frameSize+8; j++ {
-					if sum(decodeFIFO[1+j*4:2+j*4]) > 0 {
-						decodeFIFOPowerBit[j] = 0
-					} else {
-						decodeFIFOPowerBit[j] = 1
-					}
+			if len(decodeFIFO) >= 4*(9+3) && !hasRecordMframeSize {
+				mframeSize = BinaryArrayToInt(demodulate(decodeFIFO[:4*9]))
+				header := demodulate(decodeFIFO[4*9:])
+				hasRecordMframeSize = true
+				// dest src type
+				if mframeSize == 3 && header[2] == 1 {
+					ack := ACK{
+						destId: header[1],
+						srcId:  header[0]}
+					r.ackChan <- ack
+					startIndex = 0
+					decodeFIFO = nil
+					state = 0
+					hasRecordMframeSize = false
+					debug.AckReceived++
+					mframeSize = 104
 				}
-
-				crcCheck := CRC8(decodeFIFOPowerBit[:frameSize])
-				r.decode_data = append(r.decode_data, decodeFIFOPowerBit[:frameSize]...)
-
-				if !isEqual(crcCheck, decodeFIFOPowerBit[frameSize:]) {
-					totalFrame++
-					fmt.Println("CRC Error ", totalFrame)
+			}
+			if len(decodeFIFO) == 4*(9+mframeSize+8) {
+				totalFrame := demodulate(decodeFIFO)
+				mframeCRC := totalFrame[9:]
+				crcCheck := CRC8(totalFrame[:9+mframeSize])
+				if !isEqual(crcCheck, mframeCRC[mframeSize:]) {
+					debug.CRCError++
+					fmt.Println("Receiver: CRC Error")
 				} else {
-					correctFrameNum++
-					totalFrame++
+					data := Data{
+						destId: mframeCRC[1],
+						srcId:  mframeCRC[0],
+						id:     mframeCRC[3],
+						data:   mframeCRC[4:mframeSize]}
+					r.dataChan <- data
+					debug.DataReceived++
 				}
 				startIndex = 0
 				decodeFIFO = nil
 				state = 0
+				hasRecordMframeSize = false
 			}
 		}
-		if totalFrame == 500 {
-			break
-		}
-		if i > 990000 {
-			break
+		if i%500000 == 0 {
+			fmt.Println("debuglog")
+			debug.Log()
 		}
 	}
-	fmt.Println("Error bit:", error_bit)
-	fmt.Println("Total Frame:", totalFrame)
-	fmt.Println("Correct Frame:", correctFrameNum)
-	// Save received data to OUTPUT.bin
-	byteData := ConvertIntArrayToBitArray(r.decode_data)
-	file, err := os.Create("compare/OUTPUT.bin")
-	if err != nil {
-		log.Fatalf("Error creating OUTPUT.bin: %v", err)
+}
+
+func demodulate(frameWave []float64) []int {
+	res := make([]int, len(frameWave)/4)
+	for i := 0; i < len(frameWave)/4; i++ {
+		if frameWave[1+i*4]+frameWave[2+i*4] > 0 {
+			res[i] = 0
+		} else {
+			res[i] = 1
+		}
 	}
-	defer file.Close()
-	_, err = file.Write(byteData)
-	if err != nil {
-		log.Fatalf("Error writing OUTPUT.bin: %v", err)
-	}
-	fmt.Println("End receiving ...")
-	for {
-		_ = r.inputChannel
-	}
+	return res
 }
 
 func sumProduct(a []float64, b []jack.AudioSample) float64 {
