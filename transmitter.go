@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync"
 	"time"
 
 	"github.com/xthexder/go-jack"
@@ -9,6 +10,7 @@ import (
 type Transmitter struct {
 	outputChannel chan jack.AudioSample
 	preamble      []jack.AudioSample
+	channelLock   sync.Mutex
 }
 
 func NewTransmitter(outputChannel chan jack.AudioSample) *Transmitter {
@@ -26,6 +28,8 @@ func (t *Transmitter) Send(mframe []int, timeoutChan, freeTimeOutChan chan bool,
 	copy(mframePhy[9:], mframe)
 	// Add CRC redundancy bits
 	crc := CRC8(mframePhy)
+	// Acquire the lock
+	t.channelLock.Lock()
 	// Modeulate the frame
 	for _, sample := range t.preamble {
 		t.outputChannel <- jack.AudioSample(sample)
@@ -36,6 +40,8 @@ func (t *Transmitter) Send(mframe []int, timeoutChan, freeTimeOutChan chan bool,
 	for _, sample := range modulate(crc) {
 		t.outputChannel <- jack.AudioSample(sample)
 	}
+	// Release the lock
+	t.channelLock.Unlock()
 	if isACK {
 		return
 	}
@@ -62,13 +68,13 @@ func modulate(frameCRC []int) []jack.AudioSample {
 		if bit == 0 {
 			frameWave[i*4] = 1
 			frameWave[i*4+1] = 1
-			frameWave[i*4+2] = 1
-			frameWave[i*4+3] = 1
+			frameWave[i*4+2] = -1
+			frameWave[i*4+3] = -1
 		} else {
 			frameWave[i*4] = -1
 			frameWave[i*4+1] = -1
-			frameWave[i*4+2] = -1
-			frameWave[i*4+3] = -1
+			frameWave[i*4+2] = 1
+			frameWave[i*4+3] = 1
 		}
 	}
 	return frameWave
