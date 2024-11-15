@@ -68,13 +68,13 @@ func modulate(frameCRC []int) []jack.AudioSample {
 		if bit == 0 {
 			frameWave[i*4] = 1
 			frameWave[i*4+1] = 1
-			frameWave[i*4+2] = 1
-			frameWave[i*4+3] = 1
+			frameWave[i*4+2] = -1
+			frameWave[i*4+3] = -1
 		} else {
 			frameWave[i*4] = -1
 			frameWave[i*4+1] = -1
-			frameWave[i*4+2] = -1
-			frameWave[i*4+3] = -1
+			frameWave[i*4+2] = 1
+			frameWave[i*4+3] = 1
 		}
 	}
 	return frameWave

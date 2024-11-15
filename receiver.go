@@ -132,7 +132,7 @@ func (r *Receiver) Start() {
 func demodulate(frameWave []float64) []int {
 	res := make([]int, len(frameWave)/4)
 	for i := 0; i < len(frameWave)/4; i++ {
-		if frameWave[1+i*4]+frameWave[2+i*4] > 0 {
+		if frameWave[1+i*4] > frameWave[2+i*4] {
 			res[i] = 0
 		} else {
 			res[i] = 1
