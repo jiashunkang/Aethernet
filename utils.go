@@ -292,8 +292,58 @@ func IntToBinaryArray(num int) []int {
 // Input a 9-bit binary array, return an int
 func BinaryArrayToInt(binary []int) int {
 	num := 0
-	for i := 0; i < 9; i++ {
-		num += binary[i] * int(math.Pow(2, float64(8-i)))
+	for i := 0; i < len(binary); i++ {
+		num += binary[i] * int(math.Pow(2, float64(len(binary)-1-i)))
 	}
 	return num
+}
+
+func LessThan(a, b int) bool {
+	// set a as a mid point and extend to find b
+	// [a+1,a+8]
+	for i := a + 1; i <= a+8; i++ {
+		if i%16 == b {
+			return true
+		}
+	}
+	// (a-8,a]
+	for i := a; i > a-8; i-- {
+		if (i+16)%16 == b {
+			return false
+		}
+	}
+	return false
+}
+
+func GreaterThan(a, b int) bool {
+	// set a as a mid point and extend to find b
+	// [a,a+8)
+	for i := a; i < a+8; i++ {
+		if i%16 == b {
+			return false
+		}
+	}
+	// [a-8,a)
+	for i := a; i >= a-8; i-- {
+		if (i+16)%16 == b {
+			return true
+		}
+	}
+	return false
+}
+
+func GreaterEqual(a, b int) bool {
+	return !LessThan(a, b)
+}
+
+func LessEqual(a, b int) bool {
+	return !GreaterThan(a, b)
+}
+
+func Minus(a, b int) int {
+	if GreaterThan(a, b) {
+		return (a + 16 - b) % 16
+	} else {
+		return (b + 16 - a) % 16
+	}
 }

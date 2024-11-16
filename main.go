@@ -70,8 +70,8 @@ func main() {
 	go mac.Start()
 	// fmt.Println("Press enter or return to quit...")
 	// bufio.NewReader(os.Stdin).ReadString('\n')
-	time.Sleep(60 * time.Second)
-	fmt.Println("30 seconds passed, stopping...")
+	time.Sleep(20 * time.Second)
+	fmt.Println("20 seconds passed...")
 	// Write the data to a file, reuse function from utils
 	err := SavePreambleToFile("track/input_track.csv", data_in)
 	if err != nil {

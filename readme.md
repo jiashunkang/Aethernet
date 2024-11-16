@@ -71,14 +71,17 @@ go build
 
 ## frame结构
 ### MAC层
+- 滑动窗口实现
+  - transmitter.send函数在写入outputChannel前加一个mutex lock，防止几个线程同时写入outputchannel引起collision
+  - mac 创建存储data frame的一个list，命名为window，窗口大小为8
+  - mac 维护 timeout channel list 和 freetimeout channel list，大小为16（因为对应frame的id，需要窗口大小的两倍，防止混淆）
 - Data
    - 读入数据,把byte切成bit
-   - 封装mac frame **Dest(1bit) Src(1bit) Type(1bit) ID(bit) Data(100bit)** 总计104bit
-     - id bit用来区分前后发送frame的不同，举个例子：Receiver收到了 data frame 1（id bit = 0），返回了ACK，但是ACK传输中丢失了，transmitter在timeout后又发了一次data frame 1，有了id bit我们就知道这个frame是重发的。如果transmitter发data frame 2（id = 1）那么receiver收到就知道这是新的frame可以存起来。
-     - 因为我们的窗口大小只有1，即发送一个frame，等到ACK才发下一个，所以只用一个bit表示id就够了，如果滑动窗口实现就需要更多bit。
+   - 封装mac frame **Dest(1bit) Src(1bit) Type(1bit) ID(4bit - 16需要时窗口大小的两倍) Data(500bit)** 总计504bit
+     - id bit区分前后发送frame的不同
    - 将frame传递给物理层transmitter，封装**preamble（44bit） + mac length in bits(9bit 即512 留出冗余) + macframe + crc**
 - ACK
-    - 封装mac frame **Dest(1bit) Src(1bit) Type(1bit)** 总计3bit
+    - 封装mac frame **Dest(1bit) Src(1bit) Type(1bit) ID(4bit - 16需要时窗口大小的两倍)** 总计7bit
     - 将frame传递给物理层transmitter，**封装preamble（44bit） + mac length in bits(9bit 即512 留出冗余) + macframe + crc**
 - 解调步骤
   - 照搬receiver的sync
@@ -99,3 +102,6 @@ go build
 - Receiver线程 
 - transmitter每次传输时由MAC创建go transimtter.send
   - 发送完后维护timeout channel，当计时(time.sleep)达到timeout时发起重传  
+
+### 传输媒介物理性质问题
+发现如果用连续的1和-1代表1和0在单线连自己的时候没有问题，但是当使用mixer连接第二台电脑时会出现很多识别错误，这个问题在把调制方式改为{-1,-1,1,1}代表1，{1,1,-1,-1}代表0后被修正，~~但还不知道具体原理~~ 因为两台电脑的基准电压不一样，在第一台电脑的0可能会被第二台当作-0.5，这样原来<0.5的值被默认<0，然后原来的1会被解码成0.
