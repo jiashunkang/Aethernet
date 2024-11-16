@@ -263,7 +263,7 @@ func Compare() {
 }
 
 func CompareBin() {
-	inputData, err := os.ReadFile("compare/INPUT.bin")
+	inputData, err := os.ReadFile("compare/INPUT2.bin")
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 	}
