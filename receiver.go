@@ -101,7 +101,7 @@ func (r *Receiver) Start() {
 					state = 0
 					hasRecordMframeSize = false
 					debug.AckReceived++
-					mframeSize = 104
+					mframeSize = DATA_SIZE + 7
 				}
 			}
 			if len(decodeFIFO) == 4*(9+mframeSize+8) {
