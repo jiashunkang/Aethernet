@@ -110,3 +110,50 @@ func TestIntToBinaryArray2(t *testing.T) {
 		t.Errorf("IntToBinaryArray(%d) = %v; want %v", num, result, expected)
 	}
 }
+
+func TestBinaryToInt1(t *testing.T) {
+	binary := []int{1, 0, 0, 0, 0, 0, 0, 0, 1}
+	result := BinaryArrayToInt(binary)
+	expected := 256 + 1
+	if result != expected {
+		t.Errorf("BinaryToInt(%v) = %d; want %d", binary, result, expected)
+	}
+}
+
+func TestLessThan(t *testing.T) {
+	fmt.Println(LessThan(11, 2) == true)
+	fmt.Println(LessThan(11, 1) == true)
+	fmt.Println(LessThan(11, 0) == true)
+	fmt.Println(LessThan(11, 15) == true)
+	fmt.Println(LessThan(11, 14) == true)
+	fmt.Println(LessThan(11, 13) == true)
+	fmt.Println(LessThan(11, 12) == true)
+	fmt.Println(LessThan(11, 11) == false)
+	fmt.Println(LessThan(11, 10) == false)
+	fmt.Println(LessThan(11, 9) == false)
+	fmt.Println(LessThan(11, 8) == false)
+	fmt.Println(LessThan(11, 7) == false)
+	fmt.Println(LessThan(11, 6) == false)
+	fmt.Println(LessThan(11, 5) == false)
+	fmt.Println(LessThan(11, 4) == false)
+	fmt.Println(LessThan(11, 3) == true)
+}
+
+func TestGreaterThan(t *testing.T) {
+	fmt.Println(GreaterThan(11, 2) == true)
+	fmt.Println(GreaterThan(11, 1) == true)
+	fmt.Println(GreaterThan(11, 0) == true)
+	fmt.Println(GreaterThan(11, 15) == true)
+	fmt.Println(GreaterThan(11, 14) == true)
+	fmt.Println(GreaterThan(11, 13) == true)
+	fmt.Println(GreaterThan(11, 12) == true)
+	fmt.Println(GreaterThan(11, 11) == true)
+	fmt.Println(GreaterThan(11, 10) == false)
+	fmt.Println(GreaterThan(11, 9) == false)
+	fmt.Println(GreaterThan(11, 8) == false)
+	fmt.Println(GreaterThan(11, 7) == false)
+	fmt.Println(GreaterThan(11, 6) == false)
+	fmt.Println(GreaterThan(11, 5) == false)
+	fmt.Println(GreaterThan(11, 4) == false)
+	fmt.Println(GreaterThan(11, 3) == true)
+}

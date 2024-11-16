@@ -1,4 +1,4 @@
-AckReceived: 100
-DataReceived: 103
-CRCError: 4
-%!(EXTRA int=100, int=103)
+AckReceived: 102
+DataReceived: 102
+CRCError: 1
+%!(EXTRA int=102, int=102)

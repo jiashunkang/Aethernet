@@ -82,15 +82,16 @@ func (r *Receiver) Start() {
 			}
 		} else if state == 1 {
 			decodeFIFO = append(decodeFIFO, currentSample)
-			if len(decodeFIFO) >= 4*(9+3) && !hasRecordMframeSize {
+			if len(decodeFIFO) == 4*(9+7) && !hasRecordMframeSize {
 				mframeSize = BinaryArrayToInt(demodulate(decodeFIFO[:4*9]))
 				header := demodulate(decodeFIFO[4*9:])
 				hasRecordMframeSize = true
 				// dest src type
-				if mframeSize == 3 && header[2] == 1 {
+				if mframeSize == 7 && header[2] == 1 {
 					ack := ACK{
 						destId: header[1],
-						srcId:  header[0]}
+						srcId:  header[0],
+						seqNum: BinaryArrayToInt(header[3:])}
 					r.ackChan <- ack
 					startIndex = 0
 					decodeFIFO = nil
@@ -111,8 +112,8 @@ func (r *Receiver) Start() {
 					data := Data{
 						destId: mframeCRC[1],
 						srcId:  mframeCRC[0],
-						id:     mframeCRC[3],
-						data:   mframeCRC[4:mframeSize]}
+						seqNum: BinaryArrayToInt(mframeCRC[3:7]),
+						data:   mframeCRC[7:mframeSize]}
 					r.dataChan <- data
 					debug.DataReceived++
 				}
