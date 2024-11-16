@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -19,6 +20,7 @@ type MAC struct {
 	backoffChan chan bool
 	powerChan   chan float64
 	curPower    float64
+	bkoffCount  int // count backoff times, select random number from 2^0 to 2^backoffCount
 }
 
 type ACK struct {
@@ -54,6 +56,7 @@ func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample)
 	mac.macId = id
 	mac.targetId = targetId
 	mac.curPower = 0
+	mac.bkoffCount = 0
 	return mac
 }
 
@@ -86,6 +89,7 @@ func (m *MAC) Start() {
 				isBackoff = true
 				go m.backoff(RTT)
 			} else {
+				m.bkoffCount = 0 // count backoff times, select random number from 2^0 to 2^backoffCount
 				// Create window slot
 				slot := &SenderWindowSlot{}
 				slot.timeOutChan = make(chan bool)
@@ -120,6 +124,7 @@ func (m *MAC) Start() {
 					isBackoff = true
 					go m.backoff(RTT)
 				} else {
+					m.bkoffCount = 0 // count backoff times, select random number from 2^0 to 2^backoffCount
 					if slot.resend < MAX_RESEND {
 						// Sense Medium & Backoff
 						slot.resend++
@@ -217,7 +222,11 @@ func (m *MAC) Start() {
 
 func (m *MAC) backoff(milisecond int) {
 	// backoff
-	num := rand.Intn(2) + 1
+	m.bkoffCount++
+	if (m.bkoffCount) > 4 {
+		m.bkoffCount = 4
+	}
+	num := math.Pow(2, float64(rand.Intn(m.bkoffCount)))
 	time.Sleep(time.Duration(num) * time.Duration(milisecond) * time.Millisecond)
 	m.backoffChan <- true
 }
