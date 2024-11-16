@@ -12,6 +12,7 @@ type Receiver struct {
 	inputChannel chan jack.AudioSample
 	ackChan      chan ACK
 	dataChan     chan Data
+	powerChan    chan float64
 	preamble     []jack.AudioSample
 }
 
@@ -37,11 +38,12 @@ func (debug *DebugLog) Log() {
 	}
 }
 
-func NewReceiver(inputChannel chan jack.AudioSample, ackChan chan ACK, dataChan chan Data) *Receiver {
+func NewReceiver(inputChannel chan jack.AudioSample, ackChan chan ACK, dataChan chan Data, powerChan chan float64) *Receiver {
 	r := &Receiver{
 		inputChannel: inputChannel,
 		ackChan:      ackChan,
 		dataChan:     dataChan,
+		powerChan:    powerChan,
 	}
 	r.preamble = GenerateChirpPreamble(ChirpStartFreq, ChirpEndFreq, FS, PreambleLength)
 	return r
@@ -67,6 +69,7 @@ func (r *Receiver) Start() {
 		currentSample := float64(jacksample)
 		RxFIFO = append(RxFIFO, currentSample)
 		power = power*(1-1.0/64) + math.Pow(currentSample, 2)/64
+		r.powerChan <- power
 		if state == 0 {
 			syncFIFO = append(syncFIFO[1:], currentSample)
 			syncPowerDebug := sumProduct(syncFIFO, r.preamble) / 20

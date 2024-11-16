@@ -157,3 +157,7 @@ func TestGreaterThan(t *testing.T) {
 	fmt.Println(GreaterThan(11, 4) == false)
 	fmt.Println(GreaterThan(11, 3) == true)
 }
+
+func TestGenerateInputBin(t *testing.T) {
+	GenerateInputBin()
+}

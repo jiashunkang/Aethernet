@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/xthexder/go-jack"
 )
@@ -14,6 +16,9 @@ type MAC struct {
 	targetId    int
 	ackChan     chan ACK
 	dataChan    chan Data
+	backoffChan chan bool
+	powerChan   chan float64
+	curPower    float64
 }
 
 type ACK struct {
@@ -41,11 +46,14 @@ func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample)
 	mac := &MAC{}
 	mac.ackChan = make(chan ACK, 10)
 	mac.dataChan = make(chan Data, 10)
+	mac.backoffChan = make(chan bool, 10)
+	mac.powerChan = make(chan float64, 48000)
 	mac.ioHelper = NewIOHelper()
 	mac.transmitter = NewTransmitter(outputChannel)
-	mac.receiver = NewReceiver(inputChannel, mac.ackChan, mac.dataChan)
+	mac.receiver = NewReceiver(inputChannel, mac.ackChan, mac.dataChan, mac.powerChan)
 	mac.macId = id
 	mac.targetId = targetId
+	mac.curPower = 0
 	return mac
 }
 
@@ -64,47 +72,65 @@ func (m *MAC) Start() {
 	// if you have INPUT.bin, then you are a transimtter and you are a receiver in any case.
 	receiveEnd := false
 	transmitEnd := !m.ioHelper.hasData
+	// If mac is during back off
+	isBackoff := false
 	// Start receiver
 	go m.receiver.Start()
 	for {
 		// Satisfy create new transimission condition
 		if m.ioHelper.hasData && Minus(lastFrameSent, lastAckReceived) < S_WINDOW_SIZE {
 			// Sense Medium & Backoff
-			// Create window slot
-			slot := &SenderWindowSlot{}
-			slot.timeOutChan = make(chan bool)
-			slot.freeTimeOutChan = make(chan bool, 2)
-			slot.resend = 0
-			lastFrameSent++
-			lastFrameSent %= 16
-			slot.seqNum = lastFrameSent
-			// Send data
-			slot.macframe = make([]int, DATA_SIZE+3+4)
-			slot.macframe[0] = m.macId    // this mac id
-			slot.macframe[1] = m.targetId // receiver mac id
-			slot.macframe[2] = 0          // 0 means data frame, 1 means ack frame
-			// bit 3,4,5,6 represent frame id
-			copy(slot.macframe[3:7], IntToBinaryArray(slot.seqNum)[5:9])
-			// bit 7 - end represent data
-			copy(slot.macframe[7:], m.ioHelper.ReadData(DATA_SIZE))
-			// Add to window
-			sendWindow = append(sendWindow, slot)
-			go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
+			if isBackoff {
+				// Do nothing
+			} else if m.senseSignal() {
+				isBackoff = true
+				go m.backoff(RTT)
+			} else {
+				// Create window slot
+				slot := &SenderWindowSlot{}
+				slot.timeOutChan = make(chan bool)
+				slot.freeTimeOutChan = make(chan bool, 2)
+				slot.resend = 0
+				lastFrameSent++
+				lastFrameSent %= 16
+				slot.seqNum = lastFrameSent
+				// Send data
+				slot.macframe = make([]int, DATA_SIZE+3+4)
+				slot.macframe[0] = m.macId    // this mac id
+				slot.macframe[1] = m.targetId // receiver mac id
+				slot.macframe[2] = 0          // 0 means data frame, 1 means ack frame
+				// bit 3,4,5,6 represent frame id
+				copy(slot.macframe[3:7], IntToBinaryArray(slot.seqNum)[5:9])
+				// bit 7 - end represent data
+				copy(slot.macframe[7:], m.ioHelper.ReadData(DATA_SIZE))
+				// Add to window
+				sendWindow = append(sendWindow, slot)
+				go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
+			}
 		}
 		// Timeout waiting ACK
 		for _, slot := range sendWindow {
 			select {
 			case <-slot.timeOutChan:
-				if slot.resend < MAX_RESEND {
-					// Sense Medium & Backoff
-					slot.resend++
-					go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
-					fmt.Println("Resend", slot.resend, "SeqNum", slot.seqNum)
+				if isBackoff {
+					// Do nothing
+					slot.timeOutChan <- true
+				} else if m.senseSignal() {
+					slot.timeOutChan <- true
+					isBackoff = true
+					go m.backoff(RTT)
 				} else {
-					// Report error
-					slot.resend = 0
-					fmt.Println("Error: Link Error")
-					return
+					if slot.resend < MAX_RESEND {
+						// Sense Medium & Backoff
+						slot.resend++
+						go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
+						fmt.Println("Resend", slot.resend, "SeqNum", slot.seqNum)
+					} else {
+						// Report error
+						slot.resend = 0
+						fmt.Println("Error: Link Error")
+						return
+					}
 				}
 			default:
 				// Do nothing
@@ -178,6 +204,33 @@ func (m *MAC) Start() {
 		if transmitEnd && receiveEnd {
 			break
 		}
+		// Finish backoff
+		select {
+		case <-m.backoffChan:
+			isBackoff = false
+		default:
+			// Do nothing
+		}
 
 	}
+}
+
+func (m *MAC) backoff(milisecond int) {
+	// backoff
+	num := rand.Intn(2) + 1
+	time.Sleep(time.Duration(num) * time.Duration(milisecond) * time.Millisecond)
+	m.backoffChan <- true
+}
+
+func (m *MAC) senseSignal() bool {
+	exitLoop := false
+	for !exitLoop {
+		select {
+		case m.curPower = <-m.powerChan:
+			continue
+		default:
+			exitLoop = true
+		}
+	}
+	return m.curPower > POWER_SIGNAL
 }

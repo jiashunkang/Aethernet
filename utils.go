@@ -2,10 +2,10 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"encoding/csv"
 	"fmt"
 	"math"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -14,19 +14,30 @@ import (
 	"github.com/xthexder/go-jack"
 )
 
-func GenerateInputTxt() {
-	file, err := os.Create("INPUT.txt")
+func GenerateInputBin() {
+	file, err := os.Create("compare/INPUT.bin")
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	for i := 0; i < 10000; i++ {
-		bit := rand.Intn(2)
-		file.WriteString(fmt.Sprint(bit))
-		// add a space between every bit
-		file.WriteString(" ")
+	// 定义要生成的字节数
+	const byteCount = 6250
+
+	// 创建一个切片用于存储随机字节
+	data := make([]byte, byteCount)
+
+	// 使用 crypto/rand 生成随机字节
+	_, err = rand.Read(data)
+	if err != nil {
+		panic(err) // 处理随机数生成错误
 	}
+	// 将随机字节写入文件
+	_, err = file.Write(data)
+	if err != nil {
+		panic(err) // 处理写入错误
+	}
+	fmt.Println("6250 bytes of random data written to INPUT.bin")
 }
 
 func WriteOutputTxt(data []int) {
