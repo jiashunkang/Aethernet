@@ -27,7 +27,7 @@ func main() {
 
 	inputChannel := make(chan jack.AudioSample, 4096)
 	outputChannel := make(chan jack.AudioSample, 10000000)
-	mac := NewMAC(1, 1, outputChannel, inputChannel)
+	mac := NewMAC(0, 1, outputChannel, inputChannel)
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
@@ -72,6 +72,8 @@ func main() {
 	// bufio.NewReader(os.Stdin).ReadString('\n')
 	time.Sleep(20 * time.Second)
 	fmt.Println("20 seconds passed...")
+	time.Sleep(10 * time.Second)
+	fmt.Println("30 seconds passed...")
 	// Write the data to a file, reuse function from utils
 	err := SavePreambleToFile("track/input_track.csv", data_in)
 	if err != nil {
