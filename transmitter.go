@@ -53,7 +53,7 @@ func (t *Transmitter) Send(mframe []int, timeoutChan, freeTimeOutChan chan bool,
 		default:
 			time.Sleep(1 * time.Millisecond)
 			counter++
-			if counter > 1000 {
+			if counter > 500 {
 				timeoutChan <- true
 				return
 			}
