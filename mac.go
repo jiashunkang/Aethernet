@@ -49,7 +49,7 @@ func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample)
 	mac.ackChan = make(chan ACK, 10)
 	mac.dataChan = make(chan Data, 10)
 	mac.backoffChan = make(chan bool, 10)
-	mac.powerChan = make(chan float64, 48000)
+	mac.powerChan = make(chan float64, 10000000)
 	mac.ioHelper = NewIOHelper()
 	mac.transmitter = NewTransmitter(outputChannel)
 	mac.receiver = NewReceiver(inputChannel, mac.ackChan, mac.dataChan, mac.powerChan)
@@ -224,7 +224,7 @@ func (m *MAC) backoff(milisecond int) {
 	// backoff
 	m.bkoffCount++
 	if (m.bkoffCount) > 4 {
-		m.bkoffCount = 4
+		m.bkoffCount = 0
 	}
 	num := math.Pow(2, float64(rand.Intn(m.bkoffCount)))
 	time.Sleep(time.Duration(num) * time.Duration(milisecond) * time.Millisecond)
