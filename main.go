@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/xthexder/go-jack"
 )
@@ -27,7 +26,8 @@ func main() {
 
 	inputChannel := make(chan jack.AudioSample, 4096)
 	outputChannel := make(chan jack.AudioSample, 10000000)
-	mac := NewMAC(0, 1, outputChannel, inputChannel)
+	endChan := make(chan bool)
+	mac := NewMAC(1, 1, outputChannel, inputChannel, endChan)
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
@@ -70,10 +70,13 @@ func main() {
 	go mac.Start()
 	// fmt.Println("Press enter or return to quit...")
 	// bufio.NewReader(os.Stdin).ReadString('\n')
-	time.Sleep(20 * time.Second)
-	fmt.Println("20 seconds passed...")
-	time.Sleep(10 * time.Second)
-	fmt.Println("30 seconds passed...")
+	<-endChan
+	// time.Sleep(20 * time.Second)
+	// fmt.Println("20 seconds passed...")
+	// time.Sleep(10 * time.Second)
+	// fmt.Println("30 seconds passed...")
+	// time.Sleep(30 * time.Second)
+	// fmt.Println("60 seconds passed...")
 	// Write the data to a file, reuse function from utils
 	err := SavePreambleToFile("track/input_track.csv", data_in)
 	if err != nil {

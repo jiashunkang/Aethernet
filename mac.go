@@ -20,7 +20,8 @@ type MAC struct {
 	backoffChan chan bool
 	powerChan   chan float64
 	curPower    float64
-	bkoffCount  int // count backoff times, select random number from 2^0 to 2^backoffCount
+	bkoffCount  int       // count backoff times, select random number from 2^0 to 2^backoffCount
+	endChan     chan bool // inform the main function to finish
 }
 
 type ACK struct {
@@ -44,7 +45,7 @@ type SenderWindowSlot struct {
 	seqNum          int
 }
 
-func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample) *MAC {
+func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample, endChan chan bool) *MAC {
 	mac := &MAC{}
 	mac.ackChan = make(chan ACK, 10)
 	mac.dataChan = make(chan Data, 10)
@@ -57,11 +58,11 @@ func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample)
 	mac.targetId = targetId
 	mac.curPower = 0
 	mac.bkoffCount = 0
+	mac.endChan = endChan
 	return mac
 }
 
 func (m *MAC) Start() {
-	defer m.ioHelper.WriteDataToFile()
 	lastAckReceived := 2                    // Sender Protocol: LAR
 	lastFrameSent := 2                      // Sender Protocol: LFS
 	lastFrameReceived := 2                  // Receiver Protocol: LFR
@@ -129,7 +130,7 @@ func (m *MAC) Start() {
 						// Sense Medium & Backoff
 						slot.resend++
 						go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
-						fmt.Println("Resend", slot.resend, "SeqNum", slot.seqNum)
+						// fmt.Println("Resend", slot.resend, "SeqNum", slot.seqNum)
 					} else {
 						// Report error
 						slot.resend = 0
@@ -144,7 +145,6 @@ func (m *MAC) Start() {
 		// Process ACK
 		select {
 		case ack := <-m.ackChan:
-			fmt.Println("Ack ", ack.seqNum)
 			if ack.destId == m.macId {
 				if GreaterThan(ack.seqNum, lastAckReceived) && LessEqual(ack.seqNum, lastFrameSent) {
 					lastAckReceived = ack.seqNum
@@ -167,11 +167,9 @@ func (m *MAC) Start() {
 		// Process Receiver Data
 		select {
 		case data := <-m.dataChan:
-			fmt.Println("Data ", data.seqNum)
 			if data.destId == m.macId {
 				if GreaterThan(data.seqNum, lastFrameReceived) && LessEqual(data.seqNum, largestAcceptFrame) {
 					slotid := Minus(data.seqNum, (lastFrameReceived+1)%16)
-					fmt.Println("Slotid", slotid)
 					receiveWindow[slotid] = &data
 					// Update LFR
 					slide := 0
@@ -179,7 +177,6 @@ func (m *MAC) Start() {
 						if d != nil {
 							lastFrameReceived = d.seqNum
 							largestAcceptFrame = lastFrameReceived + S_WINDOW_SIZE
-							fmt.Println("Data length ", len(d.data))
 							receiveEnd = m.ioHelper.WriteData(d.data)
 							if receiveEnd {
 								m.ioHelper.WriteDataToFile()
@@ -218,6 +215,7 @@ func (m *MAC) Start() {
 		}
 
 	}
+	m.endChan <- true
 }
 
 func (m *MAC) backoff(milisecond int) {

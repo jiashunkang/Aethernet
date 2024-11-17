@@ -110,7 +110,7 @@ func (r *Receiver) Start() {
 				crcCheck := CRC8(totalFrame[:9+mframeSize])
 				if !isEqual(crcCheck, mframeCRC[mframeSize:]) {
 					debug.CRCError++
-					fmt.Println("Receiver: CRC Error")
+					// fmt.Println("Receiver: CRC Error")
 				} else {
 					data := Data{
 						destId: mframeCRC[1],
@@ -127,7 +127,7 @@ func (r *Receiver) Start() {
 			}
 		}
 		if i%500000 == 0 {
-			fmt.Println("debuglog")
+			// fmt.Println("debuglog")
 			debug.Log()
 		}
 	}

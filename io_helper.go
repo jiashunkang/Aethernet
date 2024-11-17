@@ -48,7 +48,7 @@ func (io *IOHelper) ReadData(size int) (data []int) {
 func (io *IOHelper) WriteData(data []int) bool {
 	io.data_in = append(io.data_in, data...)
 	io.bitInStart += len(data)
-	fmt.Println("bitInStart: ", io.bitInStart)
+	fmt.Println("Write: ", io.bitInStart)
 	return io.bitInStart == 6250*8 // collect enough data then return true
 }
 
@@ -57,10 +57,13 @@ func (io *IOHelper) WriteDataToFile() {
 	file, err := os.Create("compare/OUTPUT.bin")
 	if err != nil {
 		log.Fatalf("Error creating OUTPUT.bin: %v", err)
+		return
 	}
 	defer file.Close()
 	_, err = file.Write(byteData)
 	if err != nil {
 		log.Fatalf("Error writing OUTPUT.bin: %v", err)
+		return
 	}
+	fmt.Println("OUTPUT.bin written")
 }
