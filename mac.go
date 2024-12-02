@@ -110,6 +110,9 @@ func (m *MAC) Start() {
 				copy(slot.macframe[7:], m.ioHelper.ReadData(DATA_SIZE))
 				// Add to window
 				sendWindow = append(sendWindow, slot)
+				// currentTime := time.Now()
+				// // 输出包括毫秒级别的时间
+				// fmt.Println("sframe", lastFrameSent, currentTime.Format("2006-01-02 15:04:05.000"))
 				go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
 			}
 		}
@@ -170,6 +173,9 @@ func (m *MAC) Start() {
 			if data.destId == m.macId {
 				if GreaterThan(data.seqNum, lastFrameReceived) && LessEqual(data.seqNum, largestAcceptFrame) {
 					slotid := Minus(data.seqNum, (lastFrameReceived+1)%16)
+					// currentTime := time.Now()
+					// // 输出包括毫秒级别的时间
+					// fmt.Println("rframe", data.seqNum, currentTime.Format("2006-01-02 15:04:05.000"))
 					receiveWindow[slotid] = &data
 					// Update LFR
 					slide := 0
@@ -220,12 +226,18 @@ func (m *MAC) Start() {
 
 func (m *MAC) backoff(milisecond int) {
 	// backoff
+	currentTime := time.Now()
+	fmt.Println("start", currentTime.Format("2006-01-02 15:04:05.000"))
 	m.bkoffCount++
 	if (m.bkoffCount) > 4 {
 		m.bkoffCount = 0
 	}
+	fmt.Println("backoff count", m.bkoffCount)
 	num := math.Pow(2, float64(rand.Intn(m.bkoffCount)))
 	time.Sleep(time.Duration(num) * time.Duration(milisecond) * time.Millisecond)
+	currentTime = time.Now()
+	// 输出包括毫秒级别的时间
+	fmt.Println("end  ", currentTime.Format("2006-01-02 15:04:05.000"))
 	m.backoffChan <- true
 }
 
