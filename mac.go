@@ -238,7 +238,8 @@ func (m *MAC) backoff(milisecond int) {
 }
 
 func (m *MAC) senseSignal() bool {
-	SAMPLE_COUNT := 2000
+	SAMPLE_COUNT := 500
+	total := 0
 	count := 0
 	exitLoop := false
 	// Flush the channel
@@ -251,19 +252,24 @@ func (m *MAC) senseSignal() bool {
 		}
 	}
 	exitLoop = false
-	time.Sleep(time.Duration(1.1*float64(SAMPLE_COUNT)/48) * time.Millisecond)
+	time.Sleep(time.Duration(1*float64(SAMPLE_COUNT)/48) * time.Millisecond)
 	// Start collecting SAMPLE_COUNT samples
 	for !exitLoop {
 		select {
 		case powerTemp := <-m.powerChan:
+			total++
 			if powerTemp > POWER_SIGNAL {
 				count++
 			}
 			continue
 		default:
 			exitLoop = true
+			if total < SAMPLE_COUNT {
+				exitLoop = false
+				time.Sleep(time.Duration(float64(SAMPLE_COUNT-total)/48) * time.Millisecond)
+			}
 		}
 	}
-	fmt.Println("count", count)
-	return count > 300
+	fmt.Println("count ", count, " total ", total)
+	return count > 30
 }
