@@ -93,7 +93,7 @@ func (m *MAC) Start() {
 				m.bkoffCount = 0 // count backoff times, select random number from 2^0 to 2^backoffCount
 				// Create window slot
 				slot := &SenderWindowSlot{}
-				slot.timeOutChan = make(chan bool)
+				slot.timeOutChan = make(chan bool, 2)
 				slot.freeTimeOutChan = make(chan bool, 2)
 				slot.resend = 0
 				lastFrameSent++
@@ -110,9 +110,6 @@ func (m *MAC) Start() {
 				copy(slot.macframe[7:], m.ioHelper.ReadData(DATA_SIZE))
 				// Add to window
 				sendWindow = append(sendWindow, slot)
-				// currentTime := time.Now()
-				// // 输出包括毫秒级别的时间
-				// fmt.Println("sframe", lastFrameSent, currentTime.Format("2006-01-02 15:04:05.000"))
 				go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
 			}
 		}
@@ -133,12 +130,11 @@ func (m *MAC) Start() {
 						// Sense Medium & Backoff
 						slot.resend++
 						go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
-						// fmt.Println("Resend", slot.resend, "SeqNum", slot.seqNum)
 					} else {
 						// Report error
 						slot.resend = 0
 						fmt.Println("Error: Link Error")
-						return
+						break
 					}
 				}
 			default:
@@ -242,29 +238,32 @@ func (m *MAC) backoff(milisecond int) {
 }
 
 func (m *MAC) senseSignal() bool {
-	SAMPLE_COUNT := 200
+	SAMPLE_COUNT := 1000
 	count := 0
-	// Sense 200 samples
 	exitLoop := false
-	powers := make([]float64, 0, SAMPLE_COUNT*5)
+	// Flush the channel
 	for !exitLoop {
 		select {
-		case m.curPower = <-m.powerChan:
-			count++
-			powers = append(powers, m.curPower)
+		case <-m.powerChan:
 			continue
 		default:
 			exitLoop = true
-			if count <= SAMPLE_COUNT {
-				exitLoop = false
-				time.Sleep(10 * time.Millisecond)
-			}
 		}
 	}
-	for _, power := range powers[len(powers)-SAMPLE_COUNT:] {
-		m.curPower += power
+	exitLoop = false
+	time.Sleep(time.Duration(1.1*float64(SAMPLE_COUNT)/48) * time.Millisecond)
+	// Start collecting SAMPLE_COUNT samples
+	for !exitLoop {
+		select {
+		case powerTemp := <-m.powerChan:
+			if powerTemp > POWER_SIGNAL {
+				count++
+			}
+			continue
+		default:
+			exitLoop = true
+		}
 	}
-	m.curPower /= float64(SAMPLE_COUNT)
-	fmt.Println("Power ", m.curPower, " ", m.curPower > (POWER_SIGNAL/5))
-	return m.curPower > (POWER_SIGNAL / 5)
+	fmt.Println("count", count)
+	return count > 10
 }
