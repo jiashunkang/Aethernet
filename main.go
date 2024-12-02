@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/xthexder/go-jack"
 )
@@ -27,7 +28,7 @@ func main() {
 	inputChannel := make(chan jack.AudioSample, 4096)
 	outputChannel := make(chan jack.AudioSample, 10000000)
 	endChan := make(chan bool)
-	mac := NewMAC(1, 1, outputChannel, inputChannel, endChan)
+	mac := NewMAC(1, 0, outputChannel, inputChannel, endChan)
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
@@ -66,18 +67,15 @@ func main() {
 
 	client.ConnectPorts(systemInPort, inPort)
 	client.ConnectPorts(outPort, systemOutPort)
-
+	startTime := time.Now()
+	fmt.Println("Start at ", startTime)
 	go mac.Start()
 	// fmt.Println("Press enter or return to quit...")
 	// bufio.NewReader(os.Stdin).ReadString('\n')
 	<-endChan
-	// time.Sleep(20 * time.Second)
-	// fmt.Println("20 seconds passed...")
-	// time.Sleep(10 * time.Second)
-	// fmt.Println("30 seconds passed...")
-	// time.Sleep(30 * time.Second)
-	// fmt.Println("60 seconds passed...")
-	// Write the data to a file, reuse function from utils
+	endTime := time.Now()
+	fmt.Println("End at ", endTime)
+	fmt.Println("Duration: ", endTime.Sub(startTime))
 	err := SavePreambleToFile("track/input_track.csv", data_in)
 	if err != nil {
 		fmt.Println("Error saving preamble:", err)
@@ -91,8 +89,6 @@ func main() {
 	} else {
 		fmt.Println("Output saved to matlab/output_track.csv")
 	}
-	// Compare Result
-	CompareBin()
 	fmt.Println("Done.")
 
 }

@@ -238,7 +238,7 @@ func (m *MAC) backoff(milisecond int) {
 }
 
 func (m *MAC) senseSignal() bool {
-	SAMPLE_COUNT := 1000
+	SAMPLE_COUNT := 2000
 	count := 0
 	exitLoop := false
 	// Flush the channel
@@ -265,5 +265,5 @@ func (m *MAC) senseSignal() bool {
 		}
 	}
 	fmt.Println("count", count)
-	return count > 10
+	return count > 300
 }
