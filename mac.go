@@ -242,14 +242,29 @@ func (m *MAC) backoff(milisecond int) {
 }
 
 func (m *MAC) senseSignal() bool {
+	SAMPLE_COUNT := 200
+	count := 0
+	// Sense 200 samples
 	exitLoop := false
+	powers := make([]float64, 0, SAMPLE_COUNT*5)
 	for !exitLoop {
 		select {
 		case m.curPower = <-m.powerChan:
+			count++
+			powers = append(powers, m.curPower)
 			continue
 		default:
 			exitLoop = true
+			if count <= SAMPLE_COUNT {
+				exitLoop = false
+				time.Sleep(10 * time.Millisecond)
+			}
 		}
 	}
-	return m.curPower > POWER_SIGNAL
+	for _, power := range powers[len(powers)-SAMPLE_COUNT:] {
+		m.curPower += power
+	}
+	m.curPower /= float64(SAMPLE_COUNT)
+	fmt.Println("Power ", m.curPower, " ", m.curPower > (POWER_SIGNAL/5))
+	return m.curPower > (POWER_SIGNAL / 5)
 }
