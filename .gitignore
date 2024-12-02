@@ -4,5 +4,4 @@ matlab/*.wav
 *.txt
 */*.txt
 */*.csv
-matlab/*
 compare/OUTPUT.bin
