@@ -45,19 +45,13 @@ func (t *Transmitter) Send(mframe []int, timeoutChan, freeTimeOutChan chan bool,
 	if isACK {
 		return
 	}
-	counter := 0
-	for {
-		select {
-		case <-freeTimeOutChan:
-			return
-		default:
-			time.Sleep(1 * time.Millisecond)
-			counter++
-			if counter > 500 {
-				timeoutChan <- true
-				return
-			}
-		}
+	time.Sleep(500 * time.Millisecond)
+	select {
+	case <-freeTimeOutChan:
+		return
+	default:
+		timeoutChan <- true
+		return
 	}
 }
 
