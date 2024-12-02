@@ -226,7 +226,7 @@ func (m *MAC) backoff(milisecond int) {
 	fmt.Println("start", currentTime.Format("2006-01-02 15:04:05.000"))
 	m.bkoffCount++
 	if (m.bkoffCount) > 4 {
-		m.bkoffCount = 0
+		m.bkoffCount = 1
 	}
 	fmt.Println("backoff count", m.bkoffCount)
 	num := math.Pow(2, float64(rand.Intn(m.bkoffCount)))
