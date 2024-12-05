@@ -146,3 +146,18 @@ go get github.com/google/gopacket/layers
 
 ### 记得装依赖和把防火墙ICMPv4入站出站打开
 
+ping 172.182.3.111 -n 3
+
+### JACK和ASIO4ALL
+JACK如果使用默认的driver会有很高的延迟，实测如果设置128的buffer大小，大概50ms才会执行一次process callback函数。但是在qjackctl的setup里面可以改，选interface里的“ASIO::ASIO4ALL v2”选项。
+
+- 奇怪的bug
+  - 在台式机上选择ASIO后运行，apply之后，点启动jack没有问题，但是笔记本上就会报错，也找不到具体原因，重装了jack和asio之后依旧报错。
+    - 解决方案，JACK2路径下（有jackd.exe）在这个目录下打开终端，输入
+      ```
+      ./jackd.exe -S -X winmme -dportaudio -d"ASIO::ASIO4ALL v2" -r48000 -p128
+      ```
+      输入以上命令手动打开貌似就可以运行了，不知道为什么会有这么奇怪的错。
+  - ASIO有时不能识别我们想用的USB声卡而是会默认选择电脑自带的声卡
+    - 解决方案：在打开qjackctl之前，先把电脑音频选择为电脑自带的声卡，然后打开jack，启动，这样可能asio识别到电脑声卡被占用就会选择USB声卡了。
+  
