@@ -55,13 +55,14 @@ func (ip *IPstruct) Start() {
 					fmt.Println("Error creating ICMPv4 packet:", err)
 					continue
 				}
+				fmt.Println("Sending size:", len(buf))
 				ip.io.IPWriteBuffer(buf)
 				startTime := time.Now()
-				for {
+				exitLoop := false
+				for !exitLoop {
 					select {
 					case echoPacketData := <-ip.aetherIPChan:
-						elapse := time.Since(startTime)
-						fmt.Println("Received a packet in", elapse)
+						fmt.Println("Received a packet")
 						echoPacket := gopacket.NewPacket(echoPacketData, layers.LayerTypeIPv4, gopacket.Default)
 						icmpLayer := echoPacket.Layer(layers.LayerTypeICMPv4)
 						ipv4Layer := echoPacket.Layer(layers.LayerTypeIPv4)
@@ -81,6 +82,7 @@ func (ip *IPstruct) Start() {
 								fmt.Println("Destination IP:", ipv4.DstIP)
 							}
 						}
+						exitLoop = true
 					default:
 						time.Sleep(1 * time.Millisecond)
 					}
