@@ -1,4 +1,4 @@
-package main
+package shared
 
 import (
 	"fmt"
@@ -153,37 +153,6 @@ func sumProduct(a []float64, b []jack.AudioSample) float64 {
 	return sum
 }
 
-func smooth(data []float64, windowSize int) []float64 {
-	if windowSize <= 1 {
-		return data // 如果窗口大小小于等于1，直接返回原数据
-	}
-
-	smoothed := make([]float64, len(data))
-	windowSum := 0.0
-
-	// 初始化窗口的和
-	for i := 0; i < windowSize && i < len(data); i++ {
-		windowSum += data[i]
-		smoothed[i] = windowSum / float64(i+1) // 初始部分，窗口不完整时的平均值
-	}
-
-	// 滑动窗口计算平滑值
-	for i := windowSize; i < len(data); i++ {
-		windowSum += data[i] - data[i-windowSize] // 加入新的数据点并移除最旧的数据点
-		smoothed[i] = windowSum / float64(windowSize)
-	}
-
-	return smoothed
-}
-
-func multiply(a, b []float64) []float64 {
-	result := make([]float64, len(a))
-	for i := range a {
-		result[i] = a[i] * b[i]
-	}
-	return result
-}
-
 func isEqual(a, b []int) bool {
 	if len(a) != len(b) {
 		return false
@@ -194,12 +163,4 @@ func isEqual(a, b []int) bool {
 		}
 	}
 	return true
-}
-
-func sum(data []float64) float64 {
-	var sum float64
-	for _, v := range data {
-		sum += v
-	}
-	return sum
 }

@@ -116,3 +116,33 @@ go build
   - mac每次调用senseSignal函数时，会把powerChan中数据全读完，只取最后一个作为最近的sense结果，如果大于POWER_SIGNAL,就说明当前有数据在传输，需要bckoff
 - Backoff
   - 每次sense到有信号，就backoff一段时间
+
+# Project 3
+### IP层和MAC层数据交流
+IP层将IP的内容包括包头转为byte[], 交给IO helper
+  - MTU = DATA_SIZE * S_WINDOW_SIZE / 8
+  - IP层自己决定IP packet大小是否超过MTU，超过就要自己分好再交给MAC层
+  - 暂定 400 bit----50 byte 一个mac packet
+  - 暂定 400 bit*4 ---- 50*4=200 byte 一个MTU
+  - mac层新增两个bit
+    - 00 此IP包第一个mac frame
+    - 11 IP包最后一个mac frame（即可以返回上层了）
+    - 01 表示这个IP包就这一个mac frame （即可以返回上层了）
+    - 10 IP包中间的frame
+
+**io helper作为ip和mac中间层的工作**
+  - 维护一个data buffer列表，链表一个slot代表一个IP包
+  - 可以供mac层读入固定大小bit数组
+  - 可以返回IP层完整的IP byte数组
+
+### IP层构建ICMP包
+- 第三方库 gopacket，输入各字段的内容，然后调用serialize转化为byte数组，交给mac层
+```bash
+go get github.com/google/gopacket
+```
+```bash
+go get github.com/google/gopacket/layers
+```
+
+### 记得装依赖和把防火墙ICMPv4入站出站打开
+

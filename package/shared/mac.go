@@ -1,4 +1,4 @@
-package main
+package shared
 
 import (
 	"fmt"
@@ -20,8 +20,7 @@ type MAC struct {
 	backoffChan chan bool
 	powerChan   chan float64
 	curPower    float64
-	bkoffCount  int       // count backoff times, select random number from 2^0 to 2^backoffCount
-	endChan     chan bool // inform the main function to finish
+	bkoffCount  int // count backoff times, select random number from 2^0 to 2^backoffCount
 }
 
 type ACK struct {
@@ -45,20 +44,19 @@ type SenderWindowSlot struct {
 	seqNum          int
 }
 
-func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample, endChan chan bool) *MAC {
+func NewMAC(id, targetId int, outputChannel, inputChannel chan jack.AudioSample, ioHelper *IOHelper) *MAC {
 	mac := &MAC{}
 	mac.ackChan = make(chan ACK, 10)
 	mac.dataChan = make(chan Data, 10)
 	mac.backoffChan = make(chan bool, 10)
 	mac.powerChan = make(chan float64, 10000000)
-	mac.ioHelper = NewIOHelper()
+	mac.ioHelper = ioHelper
 	mac.transmitter = NewTransmitter(outputChannel)
 	mac.receiver = NewReceiver(inputChannel, mac.ackChan, mac.dataChan, mac.powerChan)
 	mac.macId = id
 	mac.targetId = targetId
 	mac.curPower = 0
 	mac.bkoffCount = 0
-	mac.endChan = endChan
 	return mac
 }
 
@@ -73,16 +71,13 @@ func (m *MAC) Start() {
 	ackFrame[2] = 1                                           // 0 means data frame, 1 means ack frame
 	receiveWindow := make([]*Data, 10000)                     // sliding window big enough so that do not need to worry about overflow
 	sendWindow := make([]*SenderWindowSlot, 0, S_WINDOW_SIZE) // sliding window
-	// if you have INPUT.bin, then you are a transimtter and you are a receiver in any case.
-	receiveEnd := false
-	transmitEnd := !m.ioHelper.hasData
 	// If mac is during back off
 	isBackoff := false
 	// Start receiver
 	go m.receiver.Start()
 	for {
 		// Satisfy create new transimission condition
-		if m.ioHelper.hasData && Minus(lastFrameSent, lastAckReceived) < S_WINDOW_SIZE {
+		if m.ioHelper.HasData() && Minus(lastFrameSent, lastAckReceived) < S_WINDOW_SIZE {
 			// Sense Medium & Backoff
 			if isBackoff {
 				// Do nothing
@@ -120,7 +115,7 @@ func (m *MAC) Start() {
 				if isBackoff {
 					// Do nothing
 					slot.timeOutChan <- true
-				} else if m.senseSignal() {
+				} else if m.senseSignal() || (slot.resend+m.macId)%5 == 0 {
 					slot.timeOutChan <- true
 					isBackoff = true
 					go m.backoff(RTT)
@@ -133,8 +128,9 @@ func (m *MAC) Start() {
 					} else {
 						// Report error
 						slot.resend = 0
+						slot.resend++
+						go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
 						fmt.Println("Error: Link Error")
-						break
 					}
 				}
 			default:
@@ -179,10 +175,7 @@ func (m *MAC) Start() {
 						if d != nil {
 							lastFrameReceived = d.seqNum
 							largestAcceptFrame = lastFrameReceived + S_WINDOW_SIZE
-							receiveEnd = m.ioHelper.WriteData(d.data)
-							if receiveEnd {
-								m.ioHelper.WriteDataToFile()
-							}
+							m.ioHelper.WriteData(d.data)
 							slide++
 						} else {
 							break
@@ -199,15 +192,6 @@ func (m *MAC) Start() {
 		default:
 			// Do nothing
 		}
-		if !transmitEnd {
-			if !m.ioHelper.hasData && len(sendWindow) == 0 {
-				transmitEnd = true
-				fmt.Println("Transmission End")
-			}
-		}
-		if transmitEnd && receiveEnd {
-			break
-		}
 		// Finish backoff
 		select {
 		case <-m.backoffChan:
@@ -215,9 +199,8 @@ func (m *MAC) Start() {
 		default:
 			// Do nothing
 		}
-
+		time.Sleep(2 * time.Millisecond)
 	}
-	m.endChan <- true
 }
 
 func (m *MAC) backoff(milisecond int) {
@@ -238,7 +221,7 @@ func (m *MAC) backoff(milisecond int) {
 }
 
 func (m *MAC) senseSignal() bool {
-	SAMPLE_COUNT := 500
+	SAMPLE_COUNT := 100
 	total := 0
 	count := 0
 	exitLoop := false

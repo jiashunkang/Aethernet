@@ -1,17 +1,18 @@
 package main
 
 import (
+	"acoustic_link/package/shared"
+	"bufio"
 	"fmt"
-	"time"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/xthexder/go-jack"
 )
 
 func main() {
-	// Copy the whole track into data
-	data_in := make([]jack.AudioSample, 0, 2000000)
-	data_out := make([]jack.AudioSample, 0, 2000000)
-
 	client, _ := jack.ClientOpen("AcousticLink", jack.NoStartServer)
 	if client == nil {
 		fmt.Println("Could not connect to jack server.")
@@ -27,8 +28,10 @@ func main() {
 
 	inputChannel := make(chan jack.AudioSample, 4096)
 	outputChannel := make(chan jack.AudioSample, 10000000)
-	endChan := make(chan bool)
-	mac := NewMAC(1, 0, outputChannel, inputChannel, endChan)
+	byteChan := make(chan []byte, 8)
+	io := shared.NewIOHelper(byteChan)
+	mac := shared.NewMAC(1, 0, outputChannel, inputChannel, io)
+	IPLayer := shared.NewIP("172.182.3.233", io, mac, byteChan)
 	// transmitter.GenerateInputTxt()
 
 	process := func(nframes uint32) int {
@@ -39,15 +42,12 @@ func main() {
 			select {
 			case sample := <-outputChannel:
 				outBuffer[i] = sample
-				data_out = append(data_out, sample)
 			default:
-				data_out = append(data_out, jack.AudioSample(0.0))
 				outBuffer[i] = 0.0
 			}
 		}
 
 		for _, sample := range inBuffer {
-			data_in = append(data_in, sample)
 			inputChannel <- sample
 
 		}
@@ -67,28 +67,34 @@ func main() {
 
 	client.ConnectPorts(systemInPort, inPort)
 	client.ConnectPorts(outPort, systemOutPort)
-	startTime := time.Now()
-	fmt.Println("Start at ", startTime)
+	// Start the MAC and IP layer threads
 	go mac.Start()
-	// fmt.Println("Press enter or return to quit...")
-	// bufio.NewReader(os.Stdin).ReadString('\n')
-	<-endChan
-	endTime := time.Now()
-	fmt.Println("End at ", endTime)
-	fmt.Println("Duration: ", endTime.Sub(startTime))
-	err := SavePreambleToFile("track/input_track.csv", data_in)
-	if err != nil {
-		fmt.Println("Error saving preamble:", err)
-	} else {
-		fmt.Println("Output saved to matlab/input_track.csv")
+	go IPLayer.Start()
+	// Main thread to read input from user
+	scanner := bufio.NewScanner(os.Stdin)
+	pingPattern := `^ping (\d{1,3}\.){3}\d{1,3}(\s+-n\s+(\d+))?$`
+	re := regexp.MustCompile(pingPattern)
+	fmt.Println("enter ping or enter exit to quit...")
+	for {
+		scanner.Scan() // 读取一行输入
+		command := scanner.Text()
+		if command == "exit" {
+			fmt.Println("exit")
+			break
+		}
+		if !re.MatchString(command) {
+			fmt.Println("Invalid Input")
+			continue
+		}
+		parts := strings.Fields(command)
+		ip := parts[1]
+		count := 1
+		if len(parts) > 2 && parts[2] == "-n" && len(parts) > 3 {
+			count, _ = strconv.Atoi(parts[3])
+		}
+		IPLayer.Ping(ip, count)
 	}
-	// Write the data to a file, reuse function from utils
-	err_out := SavePreambleToFile("track/output_track.csv", data_out)
-	if err_out != nil {
-		fmt.Println("Error saving preamble:", err)
-	} else {
-		fmt.Println("Output saved to matlab/output_track.csv")
-	}
+
 	fmt.Println("Done.")
 
 }
