@@ -95,14 +95,14 @@ func (m *MAC) Start() {
 				lastFrameSent %= 16
 				slot.seqNum = lastFrameSent
 				// Send data
-				slot.macframe = make([]int, DATA_SIZE+3+4)
+				slot.macframe = make([]int, 7, DATA_SIZE+3+4)
 				slot.macframe[0] = m.macId    // this mac id
 				slot.macframe[1] = m.targetId // receiver mac id
 				slot.macframe[2] = 0          // 0 means data frame, 1 means ack frame
 				// bit 3,4,5,6 represent frame id
 				copy(slot.macframe[3:7], IntToBinaryArray(slot.seqNum)[5:9])
 				// bit 7 - end represent data
-				copy(slot.macframe[7:], m.ioHelper.ReadData(DATA_SIZE))
+				slot.macframe = append(slot.macframe, m.ioHelper.ReadData(DATA_SIZE)...)
 				// Add to window
 				sendWindow = append(sendWindow, slot)
 				go m.transmitter.Send(slot.macframe, slot.timeOutChan, slot.freeTimeOutChan, false)
@@ -115,7 +115,7 @@ func (m *MAC) Start() {
 				if isBackoff {
 					// Do nothing
 					slot.timeOutChan <- true
-				} else if m.senseSignal() || (1+slot.resend+m.macId)%5 == 0 {
+				} else if m.senseSignal() {
 					slot.timeOutChan <- true
 					isBackoff = true
 					go m.backoff(RTT)
