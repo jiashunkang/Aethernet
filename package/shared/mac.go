@@ -115,7 +115,7 @@ func (m *MAC) Start() {
 				if isBackoff {
 					// Do nothing
 					slot.timeOutChan <- true
-				} else if m.senseSignal() || (slot.resend+m.macId)%5 == 0 {
+				} else if m.senseSignal() || (1+slot.resend+m.macId)%5 == 0 {
 					slot.timeOutChan <- true
 					isBackoff = true
 					go m.backoff(RTT)
