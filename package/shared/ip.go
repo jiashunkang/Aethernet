@@ -120,7 +120,7 @@ func (ip *IPstruct) Start() {
 					ipv4.DstIP = originalSrcIP
 					icmp.TypeCode = layers.ICMPv4TypeEchoReply
 					buffer := gopacket.NewSerializeBuffer()
-					options := gopacket.SerializeOptions{}
+					options := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 					err := gopacket.SerializePacket(buffer, options, packet)
 					if err != nil {
 						fmt.Println("Failed to serialize packet:", err)
@@ -166,7 +166,7 @@ func CreateICMPv4Packet(srcIP, dstIP string, id, seqNum int) ([]byte, error) {
 
 	// 创建一个 gopacket 的 encoder 来组合数据包
 	buffer := gopacket.NewSerializeBuffer()
-	options := gopacket.SerializeOptions{}
+	options := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 
 	// 序列化 IP 包和 ICMP 包
 	err := gopacket.SerializeLayers(buffer, options, ip, icmp, gopacket.Payload(icmpPayload))
@@ -207,7 +207,7 @@ func ModifyPacket(echoPacketData []byte) ([]byte, error) {
 
 	// 创建新的 buffer 来构造修改后的包
 	buffer := gopacket.NewSerializeBuffer()
-	options := gopacket.SerializeOptions{}
+	options := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 
 	// 序列化数据包
 	err := gopacket.SerializePacket(buffer, options, echoPacket)
