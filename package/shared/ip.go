@@ -69,9 +69,9 @@ func (ip *IPstruct) Start() {
 						if icmpLayer != nil {
 							icmp, _ := icmpLayer.(*layers.ICMPv4)
 							ipv4, _ := ipv4Layer.(*layers.IPv4)
-							if icmp.TypeCode == layers.ICMPv4TypeEchoReply {
+							if icmp.TypeCode.Type() == layers.ICMPv4TypeEchoReply {
 								timeElapsed := time.Since(startTime)
-								fmt.Println("Received ICMP Echo Reply from ", ipv4.DstIP, " in ", timeElapsed)
+								fmt.Println("Received ICMP Echo Reply from ", ipv4.SrcIP, " in ", timeElapsed)
 								// Access IPv4 fields
 								fmt.Println("Length:", ipv4.Length)
 								fmt.Println("Id:", ipv4.Id)
@@ -156,7 +156,7 @@ func CreateICMPv4Packet(srcIP, dstIP string, id, seqNum int) ([]byte, error) {
 
 	// 构建 ICMP 层（Echo Request）
 	icmp := &layers.ICMPv4{
-		TypeCode: layers.ICMPv4TypeEchoRequest,
+		TypeCode: layers.ICMPv4TypeEchoRequest << 8,
 		Id:       uint16(id),     // 标识符
 		Seq:      uint16(seqNum), // 序列号
 	}
