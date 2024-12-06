@@ -46,7 +46,7 @@ func TestPacketDecode(t *testing.T) {
 			// Serialize again (remove ether header, keep ipv4 layer only)
 			buffer := gopacket.NewSerializeBuffer()
 			serializeOptions := gopacket.SerializeOptions{}
-			err := gopacket.SerializeLayers(buffer, serializeOptions, ipv4)
+			err := gopacket.SerializeLayers(buffer, serializeOptions, ipv4, gopacket.Payload(ipv4.Payload))
 			if err != nil {
 				fmt.Println("Error serializing packet:", err)
 			}
@@ -58,8 +58,14 @@ func TestPacketDecode(t *testing.T) {
 				fmt.Println("No ICMP layer found")
 			} else {
 				fmt.Println("ICMP layer found")
+				fmt.Println("ICMP TypeCode:", newicmpLayer.(*layers.ICMPv4).TypeCode == layers.ICMPv4TypeEchoRequest)
 			}
 		}
 	}
 
+}
+
+func TestSubnetContain(t *testing.T) {
+	_, Subnet, _ := net.ParseCIDR("10.20.238.94/20")
+	fmt.Println(Subnet.Contains(net.ParseIP("192.168.137.212")))
 }
