@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/gopacket/pcap"
+	"github.com/jackpal/gateway"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -134,4 +135,9 @@ func GetMACAddressByArp(ip string) string {
 	}
 
 	return ""
+}
+
+func GetOutBoundRouterIP() string {
+	gateway, _ := gateway.DiscoverGateway()
+	return gateway.String()
 }

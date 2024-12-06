@@ -109,8 +109,8 @@ func (r *Router) ListenAether() {
 					// Serialize again (remove ether header, keep ipv4 layer only)
 					buffer := gopacket.NewSerializeBuffer()
 					serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
-					srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(ipv4.SrcIP.String()))
-					dstMac, _ := net.ParseMAC(GetMACAddressByArp("10.20.224.1"))
+					srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(slot.InterfaceIP.String()))
+					dstMac, _ := net.ParseMAC(GetMACAddressByArp(ipv4.DstIP.String()))
 					etherLayer := &layers.Ethernet{
 						EthernetType: layers.EthernetTypeIPv4,
 						SrcMAC:       srcMac, // self defined MAC... I dont know how to configure mac...
@@ -191,7 +191,7 @@ func (r *Router) ListenAether() {
 				buffer := gopacket.NewSerializeBuffer()
 				serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 				srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(ipv4.SrcIP.String()))
-				dstMac, _ := net.ParseMAC(GetMACAddressByArp("10.20.224.1"))
+				dstMac, _ := net.ParseMAC(GetMACAddressByArp(GetOutBoundRouterIP()))
 				etherLayer := &layers.Ethernet{
 					EthernetType: layers.EthernetTypeIPv4,
 					SrcMAC:       srcMac, // self defined MAC... I dont know how to configure mac...

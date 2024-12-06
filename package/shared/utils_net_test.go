@@ -79,3 +79,7 @@ func TestGetMacByAr(t *testing.T) {
 	ip := "192.168.137.212"
 	fmt.Println(GetMACAddressByArp(ip))
 }
+
+func TestRouteIP(t *testing.T) {
+	fmt.Println(GetOutBoundRouterIP())
+}
