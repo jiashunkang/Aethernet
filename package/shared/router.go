@@ -83,7 +83,7 @@ func (r *Router) ListenHotSpot(slot ForwardingTableSlot) {
 			if r.FT[0].SubNet.Contains(ipv4.DstIP) {
 				// Serialize again (remove ether header, keep ipv4 layer only)
 				buffer := gopacket.NewSerializeBuffer()
-				serializeOptions := gopacket.SerializeOptions{}
+				serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 				err := gopacket.SerializeLayers(buffer, serializeOptions, ipv4, gopacket.Payload(ipv4.Payload))
 				if err != nil {
 					fmt.Println("Error serializing packet:", err)
@@ -108,11 +108,13 @@ func (r *Router) ListenAether() {
 					founded = true
 					// Serialize again (remove ether header, keep ipv4 layer only)
 					buffer := gopacket.NewSerializeBuffer()
-					serializeOptions := gopacket.SerializeOptions{}
+					serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
+					srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(ipv4.SrcIP.String()))
+					dstMac, _ := net.ParseMAC(GetMACAddressByArp(ipv4.DstIP.String()))
 					etherLayer := &layers.Ethernet{
 						EthernetType: layers.EthernetTypeIPv4,
-						SrcMAC:       net.HardwareAddr{0x00, 0x0c, 0x29, 0x57, 0xd7, 0x1c}, // self defined MAC... I dont know how to configure mac...
-						DstMAC:       net.HardwareAddr{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+						SrcMAC:       srcMac, // self defined MAC... I dont know how to configure mac...
+						DstMAC:       dstMac,
 					}
 					err := gopacket.SerializeLayers(buffer, serializeOptions, etherLayer, ipv4, gopacket.Payload(ipv4.Payload))
 					if err != nil {
@@ -152,7 +154,7 @@ func (r *Router) ListenAether() {
 							ipv4.DstIP = originalSrcIP
 							icmp.TypeCode = layers.ICMPv4TypeEchoReply
 							buffer := gopacket.NewSerializeBuffer()
-							options := gopacket.SerializeOptions{}
+							options := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 							err := gopacket.SerializePacket(buffer, options, packet)
 							if err != nil {
 								fmt.Println("Failed to serialize packet:", err)
@@ -179,11 +181,13 @@ func (r *Router) ListenAether() {
 				ipv4.SrcIP = r.FT[len(r.FT)-1].InterfaceIP
 				// Serialize again (remove ether header, keep ipv4 layer only)
 				buffer := gopacket.NewSerializeBuffer()
-				serializeOptions := gopacket.SerializeOptions{}
+				serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
+				srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(ipv4.SrcIP.String()))
+				dstMac, _ := net.ParseMAC(GetMACAddressByArp(ipv4.DstIP.String()))
 				etherLayer := &layers.Ethernet{
 					EthernetType: layers.EthernetTypeIPv4,
-					SrcMAC:       net.HardwareAddr{0x00, 0x0c, 0x29, 0x57, 0xd7, 0x1c}, // self defined MAC... I dont know how to configure mac...
-					DstMAC:       net.HardwareAddr{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+					SrcMAC:       srcMac, // self defined MAC... I dont know how to configure mac...
+					DstMAC:       dstMac,
 				}
 				err := gopacket.SerializeLayers(buffer, serializeOptions, etherLayer, ipv4, gopacket.Payload(ipv4.Payload))
 				if err != nil {
@@ -198,7 +202,6 @@ func (r *Router) ListenAether() {
 					fmt.Println("Error opening interface:", err)
 					return
 				}
-				fmt.Printf(string(buffer.Bytes()))
 				err = handle.WritePacketData(buffer.Bytes())
 				if err != nil {
 					fmt.Println("Error writing packet:", err)
@@ -244,7 +247,7 @@ func (r *Router) ListenOutbound(slot ForwardingTableSlot) {
 				icmp.Id = value.PrivatePort
 				// Reserialize the packet and send to aether
 				buffer := gopacket.NewSerializeBuffer()
-				serializeOptions := gopacket.SerializeOptions{}
+				serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 				err := gopacket.SerializeLayers(buffer, serializeOptions, ipv4, gopacket.Payload(ipv4.Payload))
 				if err != nil {
 					fmt.Println("Error serializing packet:", err)
