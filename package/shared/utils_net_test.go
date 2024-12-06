@@ -69,3 +69,13 @@ func TestSubnetContain(t *testing.T) {
 	_, Subnet, _ := net.ParseCIDR("10.20.238.94/20")
 	fmt.Println(Subnet.Contains(net.ParseIP("192.168.137.212")))
 }
+
+func TestGetMacAddress(t *testing.T) {
+	mac := GetInterfaceMACByIP("192.168.137.1")
+	fmt.Println(mac)
+}
+
+func TestGetMacByAr(t *testing.T) {
+	ip := "192.168.137.212"
+	fmt.Println(GetMACAddressByArp(ip))
+}
