@@ -33,17 +33,17 @@ func NewRouter(aetherIP string, io *IOHelper, aetherchan chan []byte) *Router {
 	// 1. Athernet interface
 	r.FT[0].InterfaceIP = r.AetherIP
 	r.FT[0].NetType = "Aethernet"
-	r.FT[0].SubNet = GetSubnetMaskByIP(r.AetherIP.String() + "/24")
+	_, r.FT[0].SubNet, _ = net.ParseCIDR(r.AetherIP.String() + "/24")
 	// 2. Hotspot interface for phone
 	r.FT[1] = ForwardingTableSlot{
 		SubNet:      GetSubnetMaskByIP(GetHotSpotIP()),
-		InterfaceIP: net.IP(GetHotSpotIP()),
+		InterfaceIP: net.ParseIP(GetHotSpotIP()),
 		NetType:     "Ethernet",
 	}
 	// 3. Ethernet interface for Outward Connection
 	r.FT[2] = ForwardingTableSlot{
 		SubNet:      GetSubnetMaskByIP(GetOutboundIP()),
-		InterfaceIP: net.IP(GetOutboundIP()),
+		InterfaceIP: net.ParseIP(GetOutboundIP()),
 		NetType:     "Ethernet",
 	}
 	fmt.Println("Forwarding Table:", r.FT)
@@ -53,6 +53,7 @@ func NewRouter(aetherIP string, io *IOHelper, aetherchan chan []byte) *Router {
 func (r *Router) ListenEther(slot ForwardingTableSlot) {
 	// Listen on the interface
 	deviceName := GetDeviceNameByIp(slot.InterfaceIP.String())
+	fmt.Println("Listening on interface:", slot.InterfaceIP, "  ", deviceName)
 	handle, err := pcap.OpenLive(deviceName, 1600, true, pcap.BlockForever)
 	if err != nil {
 		fmt.Println("Error opening interface:", err)
@@ -100,6 +101,8 @@ func (r *Router) ListenAether() {
 					serializeOptions := gopacket.SerializeOptions{}
 					etherLayer := &layers.Ethernet{
 						EthernetType: layers.EthernetTypeIPv4,
+						SrcMAC:       net.HardwareAddr{0x00, 0x0c, 0x29, 0x57, 0xd7, 0x1c}, // self defined MAC... I dont know how to configure mac...
+						DstMAC:       net.HardwareAddr{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
 					}
 					err := gopacket.SerializeLayers(buffer, serializeOptions, etherLayer, ipv4, gopacket.Payload(ipv4.Payload))
 					if err != nil {
@@ -127,7 +130,7 @@ func (r *Router) ListenAether() {
 			}
 			// Check if send to this router through aether
 			if r.FT[0].SubNet.Contains(ipv4.DstIP) {
-				if ipv4.SrcIP.String() == r.AetherIP.String() {
+				if ipv4.DstIP.String() == r.AetherIP.String() {
 					// Respond ICMP Echo Reply if needed
 					if icmpLayer := packet.Layer(layers.LayerTypeICMPv4); icmpLayer != nil {
 						icmp, _ := icmpLayer.(*layers.ICMPv4)
@@ -144,6 +147,7 @@ func (r *Router) ListenAether() {
 							if err != nil {
 								fmt.Println("Failed to serialize packet:", err)
 							}
+							fmt.Println("Responding ICMP Echo Reply")
 							r.io.IPWriteBuffer(buffer.Bytes())
 						}
 					}
@@ -156,7 +160,7 @@ func (r *Router) ListenAether() {
 
 func (r *Router) Start() {
 	go r.ListenAether()
-	for _, slot := range r.FT {
+	for _, slot := range r.FT[1:] {
 		go r.ListenEther(slot)
 	}
 }
