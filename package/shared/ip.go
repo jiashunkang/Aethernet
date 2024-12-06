@@ -96,14 +96,14 @@ func (ip *IPstruct) Start() {
 		// idling, listening to the channel
 		select {
 		case requestPacketData := <-ip.aetherIPChan:
-			fmt.Println("Received a packet")
+			fmt.Println("Received a packet needing reply. size", len(requestPacketData))
 			packet := gopacket.NewPacket(requestPacketData, layers.LayerTypeIPv4, gopacket.Default)
 			icmpLayer := packet.Layer(layers.LayerTypeICMPv4)
 			ipv4Layer := packet.Layer(layers.LayerTypeIPv4)
 			if icmpLayer != nil {
 				icmp, _ := icmpLayer.(*layers.ICMPv4)
 				ipv4, _ := ipv4Layer.(*layers.IPv4)
-				if icmp.TypeCode == layers.ICMPv4TypeEchoRequest {
+				if icmp.TypeCode.Type() == layers.ICMPv4TypeEchoRequest {
 					fmt.Println("Received ICMP Echo Reply from ", ipv4.DstIP)
 					// Access IPv4 fields
 					fmt.Println("Length:", ipv4.Length)
