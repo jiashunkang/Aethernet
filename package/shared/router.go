@@ -103,14 +103,14 @@ func (r *Router) ListenAether() {
 			ipv4, _ := ipv4Layer.(*layers.IPv4)
 			// Check if belongs to ethernet
 			founded := false
-			for _, slot := range r.FT[1:] {
+			for _, slot := range r.FT[1:2] {
 				if slot.SubNet.Contains(ipv4.DstIP) {
 					founded = true
 					// Serialize again (remove ether header, keep ipv4 layer only)
 					buffer := gopacket.NewSerializeBuffer()
 					serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 					srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(ipv4.SrcIP.String()))
-					dstMac, _ := net.ParseMAC(GetMACAddressByArp(ipv4.DstIP.String()))
+					dstMac, _ := net.ParseMAC(GetMACAddressByArp("10.20.224.1"))
 					etherLayer := &layers.Ethernet{
 						EthernetType: layers.EthernetTypeIPv4,
 						SrcMAC:       srcMac, // self defined MAC... I dont know how to configure mac...
@@ -142,11 +142,13 @@ func (r *Router) ListenAether() {
 			}
 			// Check if pinged by the node
 			if r.FT[0].SubNet.Contains(ipv4.DstIP) {
+				founded = true
+				fmt.Println("DstIP:", ipv4.DstIP, "AetherIP:", r.AetherIP)
 				if ipv4.DstIP.String() == r.AetherIP.String() {
 					// Respond ICMP Echo Reply if needed
 					if icmpLayer := packet.Layer(layers.LayerTypeICMPv4); icmpLayer != nil {
 						icmp, _ := icmpLayer.(*layers.ICMPv4)
-						if icmp.TypeCode == layers.ICMPv4TypeEchoRequest {
+						if icmp.TypeCode.Type() == layers.ICMPv4TypeEchoRequest {
 							// Modify the packet
 							originalSrcIP := ipv4.SrcIP
 							originalDstIP := ipv4.DstIP
@@ -165,6 +167,10 @@ func (r *Router) ListenAether() {
 					}
 				}
 			}
+			if founded {
+				fmt.Println("Do not forward to the internet")
+				continue
+			}
 			// Else send out to the internet, record the NAT
 			if icmpLayer := packet.Layer(layers.LayerTypeICMPv4); icmpLayer != nil {
 				icmp, _ := icmpLayer.(*layers.ICMPv4)
@@ -177,19 +183,21 @@ func (r *Router) ListenAether() {
 				}
 				r.NATlock.Unlock()
 				// Modify data
+				fmt.Println("Before modify icmp.Id:", icmp.Id)
 				icmp.Id = r.NAT[newPort].PublicPort
+				fmt.Println("Before send icmp.Id:", icmp.Id)
 				ipv4.SrcIP = r.FT[len(r.FT)-1].InterfaceIP
 				// Serialize again (remove ether header, keep ipv4 layer only)
 				buffer := gopacket.NewSerializeBuffer()
 				serializeOptions := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
 				srcMac, _ := net.ParseMAC(GetInterfaceMACByIP(ipv4.SrcIP.String()))
-				dstMac, _ := net.ParseMAC(GetMACAddressByArp(ipv4.DstIP.String()))
+				dstMac, _ := net.ParseMAC(GetMACAddressByArp("10.20.224.1"))
 				etherLayer := &layers.Ethernet{
 					EthernetType: layers.EthernetTypeIPv4,
 					SrcMAC:       srcMac, // self defined MAC... I dont know how to configure mac...
 					DstMAC:       dstMac,
 				}
-				err := gopacket.SerializeLayers(buffer, serializeOptions, etherLayer, ipv4, gopacket.Payload(ipv4.Payload))
+				err := gopacket.SerializeLayers(buffer, serializeOptions, etherLayer, ipv4, icmp)
 				if err != nil {
 					fmt.Println("Error serializing packet:", err)
 					continue
