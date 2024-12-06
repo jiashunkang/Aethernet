@@ -33,7 +33,6 @@ func main() {
 	mac := shared.NewMAC(1, 0, outputChannel, inputChannel, io)
 	IPLayer := shared.NewIP("172.182.3.233", io, mac, byteChan)
 	// transmitter.GenerateInputTxt()
-
 	process := func(nframes uint32) int {
 		inBuffer := inPort.GetBuffer(nframes)
 		outBuffer := outPort.GetBuffer(nframes)
@@ -75,6 +74,7 @@ func main() {
 	pingPattern := `^ping (\d{1,3}\.){3}\d{1,3}(\s+-n\s+(\d+))?$`
 	re := regexp.MustCompile(pingPattern)
 	fmt.Println("enter ping or enter exit to quit...")
+	IPLayer.Ping("172.182.3.1", 3)
 	for {
 		scanner.Scan() // 读取一行输入
 		command := scanner.Text()
