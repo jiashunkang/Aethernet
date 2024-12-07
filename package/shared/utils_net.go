@@ -23,7 +23,7 @@ func GetHotSpotIP() string {
 	for _, device := range devices {
 		if device.Addresses != nil {
 			for _, address := range device.Addresses {
-				if strings.HasSuffix(address.IP.String(), ".1") && !strings.HasSuffix(address.IP.String(), "0.1") {
+				if strings.HasSuffix(address.IP.String(), ".1") && !strings.HasSuffix(address.IP.String(), "0.1") && strings.Contains(device.Description, "Wi-Fi") {
 					return address.IP.String()
 				}
 			}
