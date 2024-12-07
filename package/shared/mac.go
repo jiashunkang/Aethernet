@@ -254,5 +254,5 @@ func (m *MAC) senseSignal() bool {
 		}
 	}
 	fmt.Println("count ", count, " total ", total)
-	return count > 30
+	return count > 70
 }
