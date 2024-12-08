@@ -54,7 +54,7 @@ func (r *Receiver) Start() {
 	debug := DebugLog{}
 	defer debug.Log()
 	// Sample variables (replace with actual data)
-	RxFIFO := make([]float64, 0, 10000000)
+	RxFIFO := make([]float64, 0, 1000000)
 
 	var power, syncPowerLocalMax float64
 	var state, startIndex int
@@ -129,6 +129,16 @@ func (r *Receiver) Start() {
 		if i%500000 == 0 {
 			// fmt.Println("debuglog")
 			debug.Log()
+		}
+		if i%1000000 == 0 && i != 0 {
+			fmt.Println("Receiver: ", i)
+			RxFIFO = make([]float64, 0, 1000000)
+			power, syncPowerLocalMax = 0, 0
+			state, startIndex = 0, 0
+			syncFIFO = make([]float64, PreambleLength)
+			decodeFIFO = []float64{}
+			hasRecordMframeSize = false
+			i = -1
 		}
 	}
 }
