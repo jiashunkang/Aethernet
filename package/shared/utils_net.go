@@ -2,12 +2,16 @@ package shared
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"os/exec"
 	"strings"
+	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/jackpal/gateway"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -140,4 +144,77 @@ func GetMACAddressByArp(ip string) string {
 func GetOutBoundRouterIP() string {
 	gateway, _ := gateway.DiscoverGateway()
 	return gateway.String()
+}
+
+func GetDomainIPLookup(domain string) string {
+	ips, err := net.LookupIP(domain)
+	if err != nil {
+		return ""
+	}
+	return ips[0].String()
+}
+
+func GetDomainIP(domain string) string {
+	// DNS 服务器地址和端口
+	dnsServer := "1.1.1.1:53"
+
+	// 创建 UDP 连接
+	conn, err := net.Dial("udp", dnsServer)
+	if err != nil {
+		fmt.Println("Failed to create UDP connection: ", err)
+	}
+	defer conn.Close()
+
+	dns := layers.DNS{
+		ID:     12345,
+		QR:     false,
+		OpCode: 0,
+		RD:     true,
+		AA:     true,
+		Questions: []layers.DNSQuestion{
+			{
+				Name:  []byte(domain),
+				Type:  layers.DNSTypeA,
+				Class: layers.DNSClassIN,
+			},
+		},
+	}
+
+	// 将 DNS 查询包序列化为字节
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
+	if err := dns.SerializeTo(buf, opts); err != nil {
+		fmt.Println("Failed to serialize DNS query: ", err)
+	}
+
+	// 发送 DNS 查询包
+	if _, err := conn.Write(buf.Bytes()); err != nil {
+		fmt.Println("Failed to send DNS query: ", err)
+	}
+	fmt.Printf("Sent DNS query for %s to %s\n", domain, dnsServer)
+
+	// 设置接收超时时间
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+
+	// 接收响应
+	resp := make([]byte, 512)
+	n, err := conn.Read(resp)
+	if err != nil {
+		fmt.Println("Failed to read DNS response: ", err)
+	}
+
+	packet := gopacket.NewPacket(resp[:n], layers.LayerTypeDNS, gopacket.Default)
+	dnsLayer := packet.Layer(layers.LayerTypeDNS)
+	if dnsLayer == nil {
+		fmt.Println("No DNS layer found in response")
+	}
+
+	dnsResp, _ := dnsLayer.(*layers.DNS)
+	fmt.Printf("Received DNS response with %d answers:\n", len(dnsResp.Answers))
+
+	for _, answer := range dnsResp.Answers {
+		fmt.Printf("Name: %s, Type: %v, IP: %v\n", string(answer.Name), answer.Type, answer.IP)
+	}
+
+	return dnsResp.Answers[0].IP.String()
 }

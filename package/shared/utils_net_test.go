@@ -83,3 +83,13 @@ func TestGetMacByAr(t *testing.T) {
 func TestRouteIP(t *testing.T) {
 	fmt.Println(GetOutBoundRouterIP())
 }
+
+func TestGetDomainIP(t *testing.T) {
+	ip := GetDomainIP("baidu.com")
+	fmt.Println(ip)
+}
+
+func TestGetDomainIPLookup(t *testing.T) {
+	ip := GetDomainIPLookup("baidu.com")
+	fmt.Println(ip)
+}
