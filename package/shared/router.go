@@ -18,6 +18,7 @@ type Router struct {
 	FT           []ForwardingTableSlot
 	NAT          map[uint16]NATSlot
 	NATlock      sync.Mutex
+	dnsMap       map[string]string
 }
 
 type ForwardingTableSlot struct {
@@ -165,6 +166,22 @@ func (r *Router) ListenAether() {
 							r.io.IPWriteBuffer(buffer.Bytes())
 						}
 					}
+					// If is dns query
+					if dnsLayer := packet.Layer(layers.LayerTypeDNS); dnsLayer != nil {
+						dns, _ := dnsLayer.(*layers.DNS)
+						name := string(dns.Questions[0].Name)
+						if ip, ok := r.dnsMap[name]; ok {
+							buf := CreateDNSResponse(data, ip)
+							r.io.IPWriteBuffer(buf)
+							continue
+						}
+						ip := GetDomainIP(name)
+						r.dnsMap[name] = ip
+						buf := CreateDNSResponse(data, ip)
+						r.io.IPWriteBuffer(buf)
+						continue
+					}
+
 				}
 			}
 			if founded {
@@ -276,4 +293,72 @@ func (r *Router) Start() {
 	go r.ListenAether()
 	go r.ListenHotSpot(r.FT[1])
 	go r.ListenOutbound(r.FT[2])
+}
+
+func CreateDNSResponse(request []byte, ipAnswer string) []byte {
+	packet := gopacket.NewPacket(request, layers.LayerTypeIPv4, gopacket.Default)
+	dnsLayer := packet.Layer(layers.LayerTypeDNS)
+	if dnsLayer == nil {
+		return nil
+	}
+	dns, _ := dnsLayer.(*layers.DNS)
+	responseDNS := &layers.DNS{
+		ID:           dns.ID,
+		QR:           true, // 表示响应
+		OpCode:       dns.OpCode,
+		AA:           true,
+		RD:           dns.RD,
+		RA:           true,
+		ResponseCode: layers.DNSResponseCodeNoErr,
+		Questions:    dns.Questions,
+		Answers: []layers.DNSResourceRecord{
+			{
+				Name:  dns.Questions[0].Name,
+				Type:  layers.DNSTypeA,
+				Class: layers.DNSClassIN,
+				TTL:   3600, // 设置缓存时间
+				IP:    net.ParseIP(ipAnswer),
+			},
+		},
+	}
+
+	ipLayer := packet.Layer(layers.LayerTypeIPv4)
+	if ipLayer == nil {
+		return nil
+	}
+	ip, _ := ipLayer.(*layers.IPv4)
+
+	udpLayer := packet.Layer(layers.LayerTypeUDP)
+	if udpLayer == nil {
+		return nil
+	}
+	udp, _ := udpLayer.(*layers.UDP)
+
+	responseIP := &layers.IPv4{
+		Version:    4,
+		IHL:        5,
+		TOS:        ip.TOS,
+		Length:     0, // 自动计算
+		Id:         ip.Id,
+		Flags:      ip.Flags,
+		FragOffset: ip.FragOffset,
+		TTL:        64,
+		Protocol:   layers.IPProtocolUDP,
+		SrcIP:      ip.DstIP,
+		DstIP:      ip.SrcIP,
+	}
+	responseUDP := &layers.UDP{
+		SrcPort: udp.DstPort,
+		DstPort: udp.SrcPort,
+	}
+	responseUDP.SetNetworkLayerForChecksum(responseIP)
+
+	buffer := gopacket.NewSerializeBuffer()
+	options := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
+	err := gopacket.SerializeLayers(buffer, options, responseIP, responseUDP, responseDNS)
+	if err != nil {
+		return nil
+	}
+
+	return buffer.Bytes()
 }
