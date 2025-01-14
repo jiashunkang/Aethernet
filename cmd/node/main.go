@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -71,8 +70,6 @@ func main() {
 	go IPLayer.Start()
 	// Main thread to read input from user
 	scanner := bufio.NewScanner(os.Stdin)
-	pingPattern := `^ping (\d{1,3}\.){3}\d{1,3}(\s+-n\s+(\d+))?$`
-	re := regexp.MustCompile(pingPattern)
 	fmt.Println("enter ping or enter exit to quit...")
 	IPLayer.Ping("172.182.3.1", 3)
 	for {
@@ -81,10 +78,6 @@ func main() {
 		if command == "exit" {
 			fmt.Println("exit")
 			break
-		}
-		if !re.MatchString(command) {
-			fmt.Println("Invalid Input")
-			continue
 		}
 		parts := strings.Fields(command)
 		ip := parts[1]
