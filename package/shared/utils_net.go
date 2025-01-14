@@ -133,7 +133,7 @@ func GetMACAddressByArp(ip string) string {
 	outString, _ := decodeGBK(out)
 	lines := strings.Fields(outString)
 	for i, line := range lines {
-		if strings.Contains(line, ip) {
+		if line == ip {
 			return lines[i+1]
 		}
 	}

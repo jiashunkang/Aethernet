@@ -256,7 +256,7 @@ func CreateDNSPacket(domain string) ([]byte, error) {
 		Flags:      layers.IPv4DontFragment,
 		FragOffset: 0,
 		TTL:        64,
-		Protocol:   layers.IPProtocolICMPv4,
+		Protocol:   layers.IPProtocolUDP,
 		Checksum:   0, // 将由 gopacket 自动计算
 		SrcIP:      net.ParseIP("172.182.3.233"),
 		DstIP:      net.ParseIP("172.182.3.1"),
@@ -269,6 +269,7 @@ func CreateDNSPacket(domain string) ([]byte, error) {
 		Length:   0,
 		Checksum: 0,
 	}
+	udp.SetNetworkLayerForChecksum(ip)
 	dns := &layers.DNS{
 		ID:     12345,
 		QR:     false,

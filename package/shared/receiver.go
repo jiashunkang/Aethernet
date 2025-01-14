@@ -130,7 +130,7 @@ func (r *Receiver) Start() {
 			// fmt.Println("debuglog")
 			debug.Log()
 		}
-		if i%1000000 == 0 && i != 0 {
+		if i%100000000 == 0 && i != 0 {
 			fmt.Println("Receiver: ", i)
 			RxFIFO = make([]float64, 0, 1000000)
 			power, syncPowerLocalMax = 0, 0
