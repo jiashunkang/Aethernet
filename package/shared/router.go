@@ -38,6 +38,7 @@ func NewRouter(aetherIP string, io *IOHelper, aetherchan chan []byte) *Router {
 		io:           io,
 		aetherIPChan: aetherchan,
 		NAT:          make(map[uint16]NATSlot),
+		dnsMap:       make(map[string]string),
 	}
 	// Construct static forwarding table
 	r.FT = make([]ForwardingTableSlot, 3)
@@ -170,8 +171,8 @@ func (r *Router) ListenAether() {
 					if dnsLayer := packet.Layer(layers.LayerTypeDNS); dnsLayer != nil {
 						dns, _ := dnsLayer.(*layers.DNS)
 						name := string(dns.Questions[0].Name)
-						if ip, ok := r.dnsMap[name]; ok {
-							buf := CreateDNSResponse(data, ip)
+						if r.dnsMap[name] != "" {
+							buf := CreateDNSResponse(data, r.dnsMap[name])
 							r.io.IPWriteBuffer(buf)
 							continue
 						}
