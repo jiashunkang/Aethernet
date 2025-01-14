@@ -3,6 +3,7 @@ package shared
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"time"
 
 	"github.com/google/gopacket"
@@ -10,17 +11,23 @@ import (
 )
 
 type IPstruct struct {
-	AetherIP     net.IP           // self defined acoustic net IP
-	io           *IOHelper        // IOHelper
-	mac          *MAC             // MAC
-	aetherIPChan chan []byte      // IP message in byte from acoustic channel
-	reqPingChan  chan RequestPing // Ping request channel
-	EtherIP      net.IP           // Ethernet IP
+	AetherIP     net.IP            // self defined acoustic net IP
+	io           *IOHelper         // IOHelper
+	mac          *MAC              // MAC
+	aetherIPChan chan []byte       // IP message in byte from acoustic channel
+	reqPingChan  chan RequestPing  // Ping request channel
+	reqDnsChan   chan RequestDns   // DNS request channel
+	EtherIP      net.IP            // Ethernet IP
+	domainIPMap  map[string]string // Domain name to IP map
 }
 
 type RequestPing struct {
 	dstIP net.IP
 	count int
+}
+
+type RequestDns struct {
+	domain string
 }
 
 func NewIP(aetherIP string, io *IOHelper, mac *MAC, aetherchan chan []byte) *IPstruct {
@@ -30,11 +37,36 @@ func NewIP(aetherIP string, io *IOHelper, mac *MAC, aetherchan chan []byte) *IPs
 		mac:          mac,
 		aetherIPChan: aetherchan,
 	}
+	ip.domainIPMap = make(map[string]string)
 	ip.reqPingChan = make(chan RequestPing, 2)
+	ip.reqDnsChan = make(chan RequestDns, 1)
 	return ip
 }
 func (ip *IPstruct) Ping(IP string, count int) {
 	fmt.Println("Ping", IP, "with", count, "packets")
+	ipRegex := `^(\d{1,3}\.){3}\d{1,3}$`
+	re := regexp.MustCompile(ipRegex)
+	if !re.MatchString(IP) {
+		// Domain name
+		if ip.domainIPMap[IP] != "" {
+			IP = ip.domainIPMap[IP] // Change ...com to ip address and request ping
+		} else {
+			ip.reqDnsChan <- RequestDns{
+				domain: IP,
+			}
+			// Wait for DNS response
+			time.Sleep(1 * time.Second)
+			// Check if the domain name is resolved
+			if ip.domainIPMap[IP] == "" {
+				fmt.Println("Cannot resolve domain name", IP)
+				return
+			} else {
+				fmt.Println("Resolved domain name", IP, "to IP", ip.domainIPMap[IP])
+				IP = ip.domainIPMap[IP]
+			}
+
+		}
+	}
 	RequestPing := RequestPing{
 		dstIP: net.ParseIP(IP),
 		count: count,
@@ -89,6 +121,42 @@ func (ip *IPstruct) Start() {
 
 				}
 			}
+		case reqDns := <-ip.reqDnsChan:
+
+			buf, err := CreateDNSPacket(reqDns.domain)
+			if err != nil {
+				fmt.Println("Error creating DNS packet:", err)
+				continue
+			}
+			fmt.Println("Sending size:", len(buf))
+			ip.io.IPWriteBuffer(buf)
+			exitLoop := false
+			for !exitLoop {
+				select {
+				case echoPacketData := <-ip.aetherIPChan:
+					fmt.Println("Received a packet")
+					echoPacket := gopacket.NewPacket(echoPacketData, layers.LayerTypeIPv4, gopacket.Default)
+					dnsLayer := echoPacket.Layer(layers.LayerTypeDNS)
+					if dnsLayer != nil {
+						dns, _ := dnsLayer.(*layers.DNS)
+						if dns.QR == true && dns.ANCount > 0 {
+							for _, ans := range dns.Answers {
+								if ans.IP != nil {
+									domain := string(dns.Questions[0].Name)
+									ip.domainIPMap[domain] = ans.IP.String()
+									fmt.Println("Resolved domain", domain, "to IP", ans.IP.String())
+									break
+								}
+							}
+						}
+					}
+					exitLoop = true
+				default:
+					time.Sleep(1 * time.Millisecond)
+				}
+
+			}
+
 		default:
 
 		}
@@ -176,6 +244,56 @@ func CreateICMPv4Packet(srcIP, dstIP string, id, seqNum int) ([]byte, error) {
 
 	// 返回构建好的数据包
 	return buffer.Bytes(), nil
+}
+
+func CreateDNSPacket(domain string) ([]byte, error) {
+	ip := &layers.IPv4{
+		Version:    4,
+		IHL:        5,
+		TOS:        0,
+		Length:     0, // 将由 gopacket 自动计算
+		Id:         23451,
+		Flags:      layers.IPv4DontFragment,
+		FragOffset: 0,
+		TTL:        64,
+		Protocol:   layers.IPProtocolICMPv4,
+		Checksum:   0, // 将由 gopacket 自动计算
+		SrcIP:      net.ParseIP("172.182.3.233"),
+		DstIP:      net.ParseIP("172.182.3.1"),
+		Options:    nil,
+		Padding:    nil,
+	}
+	udp := &layers.UDP{
+		SrcPort:  12345,
+		DstPort:  53,
+		Length:   0,
+		Checksum: 0,
+	}
+	dns := &layers.DNS{
+		ID:     12345,
+		QR:     false,
+		OpCode: 0,
+		RD:     true,
+		AA:     true,
+		Questions: []layers.DNSQuestion{
+			{
+				Name:  []byte(domain),
+				Type:  layers.DNSTypeA,
+				Class: layers.DNSClassIN,
+			},
+		},
+	}
+	buffer := gopacket.NewSerializeBuffer()
+	options := gopacket.SerializeOptions{ComputeChecksums: true, FixLengths: true}
+
+	err := gopacket.SerializeLayers(buffer, options, ip, udp, dns)
+	if err != nil {
+		return nil, err
+	}
+
+	// 返回构建好的数据包
+	return buffer.Bytes(), nil
+
 }
 
 func ModifyPacket(echoPacketData []byte) ([]byte, error) {
