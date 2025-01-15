@@ -213,8 +213,10 @@ func GetDomainIP(domain string) string {
 	fmt.Printf("Received DNS response with %d answers:\n", len(dnsResp.Answers))
 
 	for _, answer := range dnsResp.Answers {
-		fmt.Printf("Name: %s, Type: %v, IP: %v\n", string(answer.Name), answer.Type, answer.IP)
+		if answer.Type == layers.DNSTypeA { // DNS type A means IPv4, AAAA means IPv6
+			fmt.Printf("Name: %s, Type: %v, IP: %v\n", string(answer.Name), answer.Type, answer.IP)
+			return answer.IP.String() // return the first ipv4 addr
+		}
 	}
-
-	return dnsResp.Answers[0].IP.String()
+	return ""
 }
