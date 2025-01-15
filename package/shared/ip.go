@@ -55,7 +55,7 @@ func (ip *IPstruct) Ping(IP string, count int) {
 				domain: IP,
 			}
 			// Wait for DNS response
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			// Check if the domain name is resolved
 			if ip.domainIPMap[IP] == "" {
 				fmt.Println("Cannot resolve domain name", IP)
